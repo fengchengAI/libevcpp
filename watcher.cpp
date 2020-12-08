@@ -19,6 +19,26 @@ void ev_watcher::set_priority(int pri_)
 {
     priority = pri_;
 }
+void ev_watcher::set_active(int act_)
+{
+    active = act_;
+}
+void ev_watcher::set_pending(int pen_)
+{
+    pending = pen_;
+}
+int ev_watcher::get_pending()
+{
+    return pending;
+}
+int ev_watcher::get_priority()
+{
+    return priority;
+}
+int ev_watcher::get_active()
+{
+    return active;
+}
 void ev_watcher::pri_adjust ()
 {
     int pri = priority;

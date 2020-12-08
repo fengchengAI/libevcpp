@@ -21,40 +21,56 @@ double ev_timer::get_repeat(){
 Timer::Timer(ev_loop * loop_){
     loop = loop_;
 }
+
+/*
+void Timer::push(std::pair<ev_watcher *, double> t){
+    anhe.push_back(t);
+}
+std::pair<ev_watcher *, double> Timer::pop(){
+    auto t = anhe.back();
+    anhe.pop_back();
+    return t;
+}
+*/
 void Timer::timers_reify ()
 {
-    printf("ANHE_at (timers [HEAP0]%f\n",ANHE_at (timers [HEAP0]));
-    printf("mn_now%f\n",mn_now);
-
-    if (timercnt && ANHE_at (timers [HEAP0]) < mn_now)  // 过期了一件事件，
+    printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
+    printf("mn_now%f\n",loop->mn_now);
+    if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
     {
         do
         {
-            ev_timer *w = (ev_timer *)ANHE_w (timers [HEAP0]);
-
-            /*assert (("libev: inactive timer on timer heap detected", ev_is_active (w)));*/
-
-            /* first reschedule or stop timer */
-            if (w->repeat)
+            if(timer_queue.top()->get_repeat())
             {
-                ev_at (w) += w->repeat;
-                if (ev_at (w) < mn_now)
-                    ev_at (w) = mn_now;
+                auto t = timer_queue.top();
+                t->set_at(t->get_at()+t->get_repeat());
+                if(t->get_at()<loop->mn_now)
+                    t->set_at(loop->mn_now);
+                assert (("libev: negative ev_timer repeat value found while processing timers", timer_queue.top()->get_repeat() > 0.));
+                timer_queue.pop();
+                timer_queue.push(t);
+            }else
+                timer_queue.top()->stop();
+            loop->ev_feed_event(timer_queue.top(),EV_TIMER);
 
-                assert (("libev: negative ev_timer repeat value found while processing timers", w->repeat > EV_TS_CONST (0.)));
+        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
+    }
+}
+void ev_timer::stop(){
+    clear_pending();
+    if (!get_active())
+        return;
 
-                ANHE_at_cache (timers [HEAP0]);
-                downheap (timers, timercnt, HEAP0);
-            }
-            else
-                ev_timer_stop (EV_A_ w); /* nonrepeating: stop timer */
+    set_at(get_at()-get_loop().mn_now);
 
-            EV_FREQUENT_CHECK;
-            feed_reverse (EV_A_ (W)w);
-        }
-        while (timercnt && ANHE_at (timers [HEAP0]) < mn_now);
+    ev_watcher::stop();
 
-        feed_reverse_done (EV_A_ EV_TIMER);
+}
+void ev_timer::clear_pending(){
+    if (get_pending())
+    {
+        get_loop().pendings [get_priority()-EV_MINPRI][get_pending() - 1].w = &get_loop().pending_w;
+        set_pending(0);
     }
 }
 
@@ -71,7 +87,7 @@ void ev_timer::start (ev_loop &loop) noexcept
     // TODO ? 应该将++timercnt;移到这个函数的后面，否则timers的第一个元素无法赋值
     // 这就会堆吧，从索引1开始而不是0
     ++timercnt;
-    timer_queue
+    loop.timer->
     ev_start (timercnt + HEAP0 - 1);
     printf("%d\n",sizeof(timers));
     array_needsize (ANHE, timers, timermax, ev_active (w) + 1, array_needsize_noinit);

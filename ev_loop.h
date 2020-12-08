@@ -11,6 +11,8 @@
 #include "ev.h"
 #include "anfd.h"
 #include "ev_epoll.h"
+#include "ev_timer.h"
+
 #define NUMPRI 5
 struct ANPENDING
 {
@@ -60,6 +62,7 @@ enum {
 
 class ev_loop {
 public:
+
     int run (int flags);
     void ev_invoke_pending();
     void pipecb (ev_io *iow, int revents);
@@ -86,7 +89,7 @@ public:
     //int pendingmax [NUMPRI];
     //std::array<int, NUMPRI> pendingcnt; //记录的是每个等级已经记录的监视器个数。也是用这个对 w_->pending进行排序，即使用++pendingcnt [NUMPRI]对w_->pending赋值
     int pendingpri; /* highest priority currently pending */
-    // ev_prepare pending_w; /* dummy pending watcher */
+     ev_prepare pending_w; /* dummy pending watcher */
 
     double io_blocktime;
     double timeout_blocktime;
@@ -108,6 +111,7 @@ public:
 // 将三个ev_io按照123顺序加入，最终结果为anfds->3->2->1
     //ANFD * anfds;
     FdWatcher*  fdwtcher;
+    Timer *timer;
     //int anfdmax;
 
     int evpipe [2];
@@ -128,7 +132,6 @@ public:
 
     ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
 
-    std::priority_queue<int, std::vector<int>, std::greater<int> > timer_queue;
     int timermax;
     int timercnt;
 
@@ -140,11 +143,11 @@ int periodiccnt;
 
     int idleall; /* total number */
 
-    struct ev_prepare ** prepares;
+    ev_prepare ** prepares;
     int preparemax;
     int preparecnt;
 
-    struct ev_check ** checks;
+    ev_check ** checks;
     int checkmax;
     int checkcnt;
 

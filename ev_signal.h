@@ -20,6 +20,11 @@ static ANSIG signals [NSIG - 1];
 
 class ev_signal : public ev_watcher
 {
+    void stop();
+    void start(ev_loop &loop);
+    void set_signum(int);
+    int get_signum();
+    void init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb, int sig);
     std::function<void(ev_loop *loop, ev_signal *w, int)>cb;
     ev_watcher_list list;
     int signum;

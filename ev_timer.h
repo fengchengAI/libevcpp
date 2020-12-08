@@ -21,7 +21,8 @@ public:
     void start (ev_loop &loop) noexcept ;
     void set_at(double );
     double get_at();
-
+    void stop() ;
+    void clear_pending();
     void set_repeat(double );
     double get_repeat();
 
@@ -41,16 +42,19 @@ struct ev_watcher_time{
     double at;
 };
 
-auto cmp = [](std::pair<ev_watcher *, double> a1, std::pair<ev_watcher *, double> a2) { return (a1.second > a2.second); };
+auto cmp = [](ev_timer * a1, ev_timer * a2) { return a1->get_at() > a2->get_at(); };
 
 class Timer{
 public:
     Timer(ev_loop *loop);
-    std::vector<std::pair<ev_watcher *, double> > anhe;
-    std::priority_queue<int, decltype(anhe), decltype(cmp) > timer_queue;
+    std::priority_queue<ev_timer *, std::vector<ev_timer *>, decltype(cmp) > timer_queue;
     void timers_reify ();
 
+    /*
+    void push(std::pair<ev_watcher *, double>);
+    std::pair<ev_watcher *, double> pop();
+    */
 
-    private: ev_loop *loop;
+private: ev_loop *loop;
 };
 #endif //LIBEVCPP_EV_TIMER_H

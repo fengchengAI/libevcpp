@@ -9,6 +9,24 @@
 #include "ev_signal.h"
 #define EVBREAK_RECURSE 0x80
 
+typedef ev_watcher ev_prepare;
+typedef ev_watcher ev_idle;
+typedef ev_watcher ev_check;
+
+typedef ev_watcher ev_fork;
+
+typedef ev_watcher ev_cleanup;
+
+static ev_signal childev;
+
+
+static void
+pendingcb (ev_loop *loop, ev_prepare *w, int revents)
+{
+}
+
+
+
 #define EV_TSTAMP_HUGE \
   (sizeof (time_t) >= 8     ? 10000000000000.  \
    : 0 < (time_t)4294967295 ?     4294967295.  :   2147483647.)
@@ -143,6 +161,7 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         mutilplexing->backend_init(this,flags);
 
         fdwtcher = new FdWatcher(this);
+        timer = new Timer(this);
 
         ev_prepare_init (&pending_w, pendingcb);
 
@@ -166,7 +185,7 @@ void ev_loop::ev_feed_event (ev_watcher *w, int revents) noexcept
         pendings[pri].push_back({w,revents});
     }
 
-pendingpri = NUMPRI - 1;   // TODO ?  这里为什么-1；
+    pendingpri = NUMPRI - 1;   // TODO ?  这里为什么-1；
 }
 void ev_loop::time_update (double max_block)
 {
@@ -365,7 +384,7 @@ int ev_loop::run (int flags)
         }
 
         /* queue pending timers and reschedule them */
-        timers_reify (EV_A); /* relative timers called last */
+        timer->timers_reify (); /* relative timers called last */
 #if EV_PERIODIC_ENABLE
         periodics_reify (EV_A); /* absolute timers called first */
 #endif

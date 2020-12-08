@@ -46,9 +46,9 @@ public:
     void init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_);
     void set_cb(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_);
     void set_priority(int pri_);
-    void set_active(int pri_);
-    void set_pending(int pri_);
-    void set_data(int pri_);
+    void set_active(int act_);
+    void set_pending(int pen_);
+    void set_data(int d_);
     std::function<void(ev_loop *loop, ev_watcher *w, int)>  get_cb();
     int get_priority();
     int get_active();
