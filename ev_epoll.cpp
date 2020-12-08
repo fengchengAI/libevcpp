@@ -276,7 +276,8 @@ void ev_epoll::epoll_destroy (ev_loop * loop)
 {
     free(epoll_events);
     epoll_events = nullptr;
-    array_free (epoll_eperm, EMPTY);
+    free (epoll_eperms);
+    epoll_eperms = nullptr;
 }
 
 
@@ -285,7 +286,7 @@ void ev_epoll::epoll_fork (ev_loop * loop)
     close (backend_fd);
 
     while ((backend_fd = epoll_epoll_create ()) < 0)
-        ev_syserr ("(libev) epoll_create");
+        std::cerr<<"(libev) epoll_create"<<std::endl;
 
     fd_rearm_all (EV_A);
 }

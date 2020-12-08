@@ -11,13 +11,9 @@
 class ev_timer : public ev_watcher
 {
 public:
-    ev_timer(){};
+    ev_timer();
 
-    void init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb, double at_, double repeat_){
-        ev_watcher::init(cb);
-        at = at_;
-        repeat = repeat_;
-    }
+    void init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb, double at_, double repeat_);
     void start (ev_loop &loop) noexcept ;
     void set_at(double );
     double get_at();
@@ -31,7 +27,7 @@ public:
     double repeat;
 };
 
-
+/*
 //  ev_watcher_time是用来做堆的。
 struct ev_watcher_time{
     int active;
@@ -41,19 +37,22 @@ struct ev_watcher_time{
     std::function<void(ev_loop &loop, ev_watcher_time *w, int)>cb;
     double at;
 };
-
+*/
 auto cmp = [](ev_timer * a1, ev_timer * a2) { return a1->get_at() > a2->get_at(); };
 
 class Timer{
 public:
     Timer(ev_loop *loop);
-    std::priority_queue<ev_timer *, std::vector<ev_timer *>, decltype(cmp) > timer_queue;
+    std::priority_queue<ev_timer *, std::vector<ev_timer *>, cmp > timer_queue;
     void timers_reify ();
 
-    /*
-    void push(std::pair<ev_watcher *, double>);
-    std::pair<ev_watcher *, double> pop();
-    */
+
+    void push(ev_timer *);
+    ev_timer * top();
+    void pop();
+    size_t size();
+
+
 
 private: ev_loop *loop;
 };

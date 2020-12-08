@@ -47,6 +47,7 @@ ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
     {
         #if EV_CHILD_ENABLE
             ev_signal_init (&childev, childcb, SIGCHLD);
+            childev.init(childcb, SIGCHLD);
             ev_set_priority (&childev, EV_MAXPRI);
             ev_signal_start (EV_A_ &childev);
             ev_unref (EV_A); /* child watcher should not keep loop alive */

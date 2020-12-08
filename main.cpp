@@ -50,7 +50,7 @@ main (void)
     // initialise a timer watcher, then start it
     // simple non-repeating 5.5 second timeout
     timeout_watcher.init(timeout_cb, 5.5, 0.);
-    ev_timer_start (loop, &timeout_watcher);
+    timeout_watcher.start(loop);
 
     // now wait for events to arrive
     ev_run (loop, 0);

@@ -7,7 +7,7 @@
 #include <bits/types.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include <fcntl.h>
 #include <unistd.h>
 
 class noncopyable {
@@ -50,16 +50,36 @@ void ev_sleep (double delay) noexcept
         nanosleep (&ts, 0);
     }
 }
+#define MALLOC_ROUND 4096 /* prefer to allocate in chunks of this size, must be 2**n and >> 4 longs */
 
-void array_needsize(type,base,cur,cnt,init)	{
+int array_nextsize (int elem, int cur, int cnt)
+{
+    int ncur = cur + 1;
 
-    if (ecb_expect_false ((cnt) > (cur)))
+    do
+        ncur <<= 1;   // ncur乘以2； ，等于说每次增加两个
+    while (cnt > ncur);
+
+    // 当elem * ncur > MALLOC_ROUND - sizeof (void *) * 4每次当内存不够时直接加1024,而不是加2
+    /* if size is large, round to MALLOC_ROUND - 4 * longs to accommodate malloc overhead */
+    if (elem * ncur > MALLOC_ROUND - sizeof (void *) * 4)
     {
-        ecb_unused int ocur_ = (cur);
-        (base) = (type *)array_realloc
-                (sizeof (type), (base), &(cur), (cnt));
-        init ((base), ocur_, ((cur) - ocur_));
+        ncur *= elem;
+        ncur = (ncur + elem + (MALLOC_ROUND - 1) + sizeof (void *) * 4) & ~(MALLOC_ROUND - 1);
+        ncur = ncur - sizeof (void *) * 4;
+        ncur /= elem;
     }
+
+    return ncur;
 }
+
+/* used to prepare libev internal fd's */
+/* this is not fork-safe */
+void fd_intern (int fd)
+{
+    fcntl (fd, F_SETFD, FD_CLOEXEC);
+    fcntl (fd, F_SETFL, O_NONBLOCK);
+}
+
 
 #endif //LIBEVCPP_UTILS_H

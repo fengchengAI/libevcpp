@@ -57,18 +57,18 @@ public:
     void pri_adjust ();
     void ev_start (int active_);
     void stop();
-    ev_loop &get_loop();
+    ev_loop *get_loop();
 
 private:
     int active;
     int pending;
     int priority;
     void *data;
-    ev_loop &loop;
+    ev_loop *loop;
     std::function<void(ev_loop &loop, ev_watcher *w, int)>cb;
 };
 
-using ev_watcher_list = std::forward_list<ev_watcher> ev_watcher_list;
+using ev_watcher_list = std::forward_list<ev_watcher *> ev_watcher_list;
 
 
 

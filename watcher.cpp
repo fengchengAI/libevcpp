@@ -4,7 +4,8 @@
 
 #include "watcher.h"
 
-ev_watcher::ev_watcher(){}
+ev_watcher::ev_watcher():
+            active(0),pending(0),priority(0),data(nullptr),cb(nullptr){}
 void ev_watcher::init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_)
 {
     active  = pending = priority =  0;
@@ -50,12 +51,12 @@ void ev_watcher::ev_start (int active_)
 {
     pri_adjust ();
     active = active_;
-    ++loop.activecnt;
+    ++loop->activecnt;
 }
 void ev_watcher::stop(){
     active = 0;
-    loop.activecnt--;
+    loop->activecnt--;
 }
-ev_loop & ev_watcher::get_loop(){
+ev_loop * ev_watcher::get_loop(){
     return loop;
 }
