@@ -12,7 +12,7 @@
 #include "anfd.h"
 #include "ev_epoll.h"
 #include "ev_timer.h"
-
+#include "ev_io.h"
 #define NUMPRI 5
 struct ANPENDING
 {
@@ -65,7 +65,6 @@ public:
 
     int run (int flags);
     void ev_invoke_pending();
-    void pipecb (ev_io *iow, int revents);
 
     void loop_init (unsigned int flags) noexcept;
     void ev_feed_event (ev_watcher *w, int revents) noexcept;
@@ -77,7 +76,7 @@ public:
     double mn_now;    /* monotonic clock "now" 在创建loop的时候初始化，每次update_time更新这个*/
     double rtmn_diff; /* difference realtime - monotonic time */
 
-    std::vector<ev_watcher *> base_event;
+    std::vector<ev_watcher*> base_event;
     // TODO ? 这里是什么？
     /* 用于事件的反向馈送对于一个到期的时间事件，将它放进这里 */
     ev_watcher * rfeeds;
@@ -137,8 +136,8 @@ public:
 
 #if EV_PERIODIC_ENABLE 
     ANHE * periodics;  // 周期性事件
-int periodicmax;
-int periodiccnt;
+    int periodicmax;
+    int periodiccnt;
 #endif
 
     int idleall; /* total number */
@@ -154,31 +153,31 @@ int periodiccnt;
 
 #if EV_ASYNC_ENABLE 
     sig_atomic_t async_pending;
-//struct ev_async ** asyncs;
-//std::vector<std::shared_ptr<ev_async> > asyncs;
-std::vector<ev_async* > asyncs;
+    //struct ev_async ** asyncs;
+    //std::vector<std::shared_ptr<ev_async> > asyncs;
+    std::vector<ev_async* > asyncs;
 
-int asyncmax;
-int asynccnt;
+    int asyncmax;
+    int asynccnt;
 #endif
 
 #if EV_USE_INOTIFY 
     int fs_fd;
-ev_io fs_w;
-char fs_2625; /* whether we are running in linux 2.6.25 or newer */
-VAR (fs_hash ANFS fs_hash [EV_INOTIFY_HASHSIZE];
+    ev_io* fs_w;
+    char fs_2625; /* whether we are running in linux 2.6.25 or newer */
+    ANFS fs_hash [EV_INOTIFY_HASHSIZE];
 #endif
 
     sig_atomic_t sig_pending;
 #if EV_USE_SIGNALFD 
     int sigfd;
-ev_io sigfd_w;
-sigset_t sigfd_set;
+    ev_io sigfd_w;
+    sigset_t sigfd_set;
 #endif
 
 #if EV_USE_TIMERFD 
     int timerfd; /* timerfd for time jump detection */
-ev_io timerfd_w;
+    ev_io* timerfd_w;
 #endif
 
     unsigned int origflags; /* original loop flags */ //loop_init(;传入的
@@ -189,13 +188,13 @@ ev_io timerfd_w;
 
 void * userdata;
 /* C++ doesn't support the ev_loop_callback typedef here. stinks. */
- void (*release_cb;(EV_P; EV_NOEXCEPT;
- void (*acquire_cb;(EV_P; EV_NOEXCEPT;
+
  std::function<void()> invoke_cb;
 
 #endif
 
 };
 
+static  ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
 
 #endif //LIBEVCPP_EV_LOOP_H

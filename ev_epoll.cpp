@@ -209,8 +209,7 @@ void ev_epoll::backend_poll (ev_loop *loop, double timeout)
                 continue;
             }
         }
-
-        fd_event (loop, fd, got);
+        loop->fdwtcher->fd_event(fd, got);
     }
 
     /* if the receive array was full, increase its size */
@@ -231,7 +230,7 @@ void ev_epoll::backend_poll (ev_loop *loop, double timeout)
         unsigned char events = loop->fdwtcher->get_anfd(fd).events & (EV_READ | EV_WRITE);
 
         if (loop->fdwtcher->get_anfd(fd).emask & EV_EMASK_EPERM && events)
-            fd_event (EV_A_ fd, events);
+            loop->fdwtcher->fd_event(fd,events);
         else
         {
             epoll_eperms [i] = epoll_eperms [--epoll_epermcnt];
@@ -288,6 +287,6 @@ void ev_epoll::epoll_fork (ev_loop * loop)
     while ((backend_fd = epoll_epoll_create ()) < 0)
         std::cerr<<"(libev) epoll_create"<<std::endl;
 
-    fd_rearm_all (EV_A);
+    loop->fdwtcher->fd_rearm_all ();
 }
 

@@ -6,13 +6,13 @@
 
 ev_watcher::ev_watcher():
             active(0),pending(0),priority(0),data(nullptr),cb(nullptr){}
-void ev_watcher::init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_)
+void ev_watcher::init(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_)
 {
     active  = pending = priority =  0;
     data = nullptr;
     cb = cb_;
 }
-void ev_watcher::set_cb(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_)
+void ev_watcher::set_cb(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_)
 {
     cb = cb_;
 }

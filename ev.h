@@ -11,6 +11,7 @@
 #include <vector>
 #include <functional>
 #include "config.h"
+
 #ifndef EV_COMPAT3
 # define EV_COMPAT3 1
 #endif
@@ -234,6 +235,9 @@
 #define MAX_BLOCKTIME2 1500001.07 /* same, but when timerfd is used to detect jumps, also safe delay to not overflow */
 
 
+#ifndef EV_PID_HASHSIZE
+# define EV_PID_HASHSIZE EV_FEATURE_DATA ? 16 : 1
+#endif
 
 
 #endif //LIBEVCPP_EV_H

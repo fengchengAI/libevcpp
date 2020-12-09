@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include "anfd.h"
 #include "ev_signal.h"
+
 #define EVBREAK_RECURSE 0x80
 
 typedef ev_watcher ev_prepare;
@@ -34,7 +35,7 @@ pendingcb (ev_loop *loop, ev_prepare *w, int revents)
 static ev_loop *ev_default_loop_ptr = nullptr;
 static ev_loop default_loop_struct;
 
-ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
+static  ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
 {
     if (!ev_default_loop_ptr)
     {
@@ -46,11 +47,11 @@ ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
     if (loop->backend )
     {
         #if EV_CHILD_ENABLE
-            ev_signal_init (&childev, childcb, SIGCHLD);
+
             childev.init(childcb, SIGCHLD);
-            ev_set_priority (&childev, EV_MAXPRI);
-            ev_signal_start (EV_A_ &childev);
-            ev_unref (EV_A); /* child watcher should not keep loop alive */
+            childev.set_priority(EV_MAXPRI);
+            childev.start(loop);
+            loop->activecnt--; /* child watcher should not keep loop alive */
         #endif
     }
     else
@@ -60,50 +61,50 @@ ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
     return ev_default_loop_ptr;
 }
 
-void ev_loop::pipecb (ev_io *iow, int revents)
+void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
 {
     int i;
 
     if (revents & EV_READ)
     {
         #if EV_USE_EVENTFD
-        if (evpipe [0] < 0)
+        if (loop->evpipe [0] < 0)
         {
             uint64_t counter;
-            read (evpipe [1], &counter, sizeof (uint64_t));
+            read (loop->evpipe [1], &counter, sizeof (uint64_t));
         }
         else
         #endif
         {
             char dummy[4];
 
-            read (evpipe [0], &dummy, sizeof (dummy));
+            read (loop->evpipe [0], &dummy, sizeof (dummy));
         }
     }
 
-    pipe_write_skipped = 0;
+    loop->pipe_write_skipped = 0;
 
     #if EV_SIGNAL_ENABLE
-    if (sig_pending)
+    if (loop->sig_pending)
     {
-        sig_pending = 0;
+        loop->sig_pending = 0;
 
         for (i = NSIG - 1; i--; )
             if (signals [i].pending)
-                ev_feed_signal_event (EV_A_ i + 1);
+                ev_feed_signal_event (loop, i + 1);
     }
     #endif
 
     #if EV_ASYNC_ENABLE
-    if (async_pending)
+    if (loop->async_pending)
     {
-        async_pending = 0;
+        loop->async_pending = 0;
 
-        for (i = asynccnt; i--; )
-            if (asyncs [i]->get_sent())
+        for (i = loop->asynccnt; i--; )
+            if (loop->asyncs [i]->get_sent())
             {
-                asyncs [i]->set_sent(0);
-                ev_feed_event (dynamic_cast<ev_watcher *>(asyncs.at(i)), EV_ASYNC);
+                loop->asyncs [i]->set_sent(0);
+                loop->ev_feed_event (dynamic_cast<ev_watcher *>(loop->asyncs.at(i)), EV_ASYNC);
             }
     }
     #endif
@@ -157,7 +158,8 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         if (!(flags & EVBACKEND_MASK))
         flags |= EVBACKEND_EPOLL;
 
-        if (!backend && (flags & EVBACKEND_EPOLL   )) backend = epoll_init     (EV_A_ flags);
+        if (!backend && (flags & EVBACKEND_EPOLL   ))
+            backend = EVBACKEND_EPOLL;
         mutilplexing = selectMultiplexing(EVBACKEND_EPOLL);
         mutilplexing->backend_init(this,flags);
 
@@ -167,9 +169,8 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         ev_prepare_init (&pending_w, pendingcb);
 
         #if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
-        ev_init (&pipe_w, pipecb);
-        pipe_w.init(pipecb);
-        ev_set_priority (&pipe_w, EV_MAXPRI);
+        pipe_w.ev_watcher::init(pipecb);
+        pipe_w.set_priority(EV_MAXPRI);
         #endif
     }
 }
@@ -231,7 +232,9 @@ void ev_loop::time_update (double max_block)
 
         /* no timer adjustment, as the monotonic clock doesn't jump */
         /* timers_reschedule (EV_A_ rtmn_diff - odiff) */
-# if EV_PERIODIC_ENABLE
+//# if EV_PERIODIC_ENABLE
+# if 0
+
     periodics_reschedule (EV_A);
 # endif
 
@@ -310,8 +313,8 @@ int ev_loop::run (int flags)
 
 #if EV_USE_TIMERFD
                 /* sleep a lot longer when we can reliably detect timejumps */
-            if (ecb_expect_true (timerfd >= 0))
-              waittime = EV_TS_CONST (MAX_BLOCKTIME2);
+            if (timerfd >= 0)
+              waittime = MAX_BLOCKTIME2;
 #endif
 #if !EV_PERIODIC_ENABLE
                 /* 没有周期但具有单调时钟，无需任何时间跳变检测，因此睡眠时间更长 */
@@ -386,7 +389,8 @@ int ev_loop::run (int flags)
 
         /* queue pending timers and reschedule them */
         timer->timers_reify (); /* relative timers called last */
-#if EV_PERIODIC_ENABLE
+//#if EV_PERIODIC_ENABLE
+# if 0
         periodics_reify (EV_A); /* absolute timers called first */
 #endif
 

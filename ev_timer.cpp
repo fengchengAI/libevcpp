@@ -88,17 +88,17 @@ ev_timer::ev_timer():ev_watcher(),at(0),repeat(0)
 {
 
 }
-void ev_timer::init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb, double at_, double repeat_){
-    ev_watcher::init(cb);
+void ev_timer::init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb_, double at_, double repeat_){
+    cb = cb_;
     at = at_;
     repeat = repeat_;
 }
-void ev_timer::start (ev_loop &loop) noexcept
+void ev_timer::start (ev_loop *loop) noexcept
 {
     if (get_active())
         return;
 
-    set_at(get_at()+loop.mn_now);  // 这里的到期时间是，创建后的时间间隔
+    set_at(get_at()+loop->mn_now);  // 这里的到期时间是，创建后的时间间隔
 
     assert (("libev: ev_timer_start called with negative timer repeat value", get_repeat() >= 0.));
 
@@ -106,8 +106,8 @@ void ev_timer::start (ev_loop &loop) noexcept
     // TODO ? 应该将++timercnt;移到这个函数的后面，否则timers的第一个元素无法赋值
     // 这就会堆吧，从索引1开始而不是0
     //++timercnt;
-    loop.timer->push(this);
-    ev_start (loop.timer->size());
+    loop->timer->push(this);
+    ev_start (loop->timer->size());
     /*
     printf("%d\n",sizeof(timers));
     array_needsize (ANHE, timers, timermax, ev_active (w) + 1, array_needsize_noinit);

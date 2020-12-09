@@ -11,6 +11,7 @@
 #include "ev_loop.h"
 #include "utils.h"
 
+class ev_loop;
 enum {
     EV_UNDEF = (int)0xFFFFFFFF,
     EV_NONE = 0x00,
@@ -43,8 +44,8 @@ class ev_watcher : noncopyable
 
 public:
     ev_watcher();
-    void init(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_);
-    void set_cb(std::function<void(ev_loop &loop, ev_watcher *w, int)> cb_);
+    void init(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_);
+    void set_cb(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_);
     void set_priority(int pri_);
     void set_active(int act_);
     void set_pending(int pen_);
@@ -65,10 +66,10 @@ private:
     int priority;
     void *data;
     ev_loop *loop;
-    std::function<void(ev_loop &loop, ev_watcher *w, int)>cb;
+    std::function<void(ev_loop *loop, ev_watcher *w, int)>cb;
 };
 
-using ev_watcher_list = std::forward_list<ev_watcher *> ev_watcher_list;
+using ev_watcher_list = std::forward_list<ev_watcher *>;
 
 
 
@@ -83,7 +84,7 @@ class ev_async : public ev_watcher
 {
 public:
     sig_atomic_t get_sent(){
-        return sig_atomic_t;
+        return sent;
     }
     void set_sent(sig_atomic_t sent_){
         sent = sent_;

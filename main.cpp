@@ -6,6 +6,7 @@
 #include "ev.h"
 #include "watcher.h"
 #include "ev_timer.h"
+#include "ev_loop.h"
 #include <cstdio> // for puts
 
 // every watcher type has its own typedef'd struct
@@ -29,7 +30,7 @@ ev_break (EV_A_ EVBREAK_ALL);
 
 // another callback, this time for a time-out
 static void
-timeout_cb (EV_P_ ev_timer *w, int revents)
+timeout_cb (ev_loop* loop, ev_timer *w, int revents)
 {
 puts ("timeout");
 // this causes the innermost ev_run to stop iterating
@@ -40,7 +41,7 @@ int
 main (void)
 {
     // use the default event loop unless you have special needs
-    struct ev_loop loop = ev_default_loop();
+    struct ev_loop *loop = ev_default_loop();
 
     // initialise an io watcher, then start it
     // this one will watch for stdin to become readable
@@ -53,7 +54,7 @@ main (void)
     timeout_watcher.start(loop);
 
     // now wait for events to arrive
-    ev_run (loop, 0);
+    loop->run(0);
 
     // break was called, so exit
     return 0;
