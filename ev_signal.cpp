@@ -7,6 +7,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "ev_loop.h"
+#include "utils.h"
+
+#include "ev_io.h"
+std::forward_list<ev_child *> childs [EV_PID_HASHSIZE];
 
 void ev_signal::set_signum(int sig_){
     signum = sig_;
@@ -75,6 +79,7 @@ void sigfdcb (ev_loop*loop, ev_io *iow, int revents)
     }
 }
 void ev_signal::start(ev_loop *loop){
+    set_loop(loop);
     if (get_active())
         return;
 
@@ -97,9 +102,9 @@ void ev_signal::start(ev_loop *loop){
           fd_intern (loop->sigfd); /* doing it twice will not hurt */
 
           sigemptyset (&loop->sigfd_set);
-          loop->sigfd_w.init(sigfdcb, loop->sigfd, EV_READ);
-          loop->sigfd_w.set_priority(EV_MAXPRI);
-          loop->sigfd_w.start(loop);
+          loop->sigfd_w->init(sigfdcb, loop->sigfd, EV_READ);
+          loop->sigfd_w->set_priority(EV_MAXPRI);
+          loop->sigfd_w->start(loop);
           loop->activecnt--;
           //ev_unref (EV_A); /* signalfd watcher should not keep loop alive */
         }

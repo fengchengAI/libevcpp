@@ -7,22 +7,18 @@
 #include <cstdlib>
 #include "anfd.h"
 #include "ev_signal.h"
+#include "watcher.h"
 
+#include "anfd.h"
+#include "watcher.h"
+
+#include "ev_epoll.h"
+#include "ev_timer.h"
+#include "ev_io.h"
+#include "ev_signal.h"
 #define EVBREAK_RECURSE 0x80
 
-typedef ev_watcher ev_prepare;
-typedef ev_watcher ev_idle;
-typedef ev_watcher ev_check;
-
-typedef ev_watcher ev_fork;
-
-typedef ev_watcher ev_cleanup;
-
-static ev_signal childev;
-
-
-static void
-pendingcb (ev_loop *loop, ev_prepare *w, int revents)
+void pendingcb (ev_loop *loop, ev_watcher *w, int revents)
 {
 }
 
@@ -33,13 +29,13 @@ pendingcb (ev_loop *loop, ev_prepare *w, int revents)
    : 0 < (time_t)4294967295 ?     4294967295.  :   2147483647.)
 
 static ev_loop *ev_default_loop_ptr = nullptr;
-static ev_loop default_loop_struct;
 
-static  ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
+
+ev_loop *ev_default_loop (unsigned int flags )
 {
     if (!ev_default_loop_ptr)
     {
-        ev_loop *loop = ev_default_loop_ptr = &default_loop_struct;
+        ev_loop *loop = ev_default_loop_ptr  = new ev_loop();
 
 
         loop->loop_init (flags);
@@ -47,10 +43,10 @@ static  ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
     if (loop->backend )
     {
         #if EV_CHILD_ENABLE
-
-            childev.init(childcb, SIGCHLD);
-            childev.set_priority(EV_MAXPRI);
-            childev.start(loop);
+            childev = new ev_signal();
+            childev->init(childcb, SIGCHLD);
+            childev->set_priority(EV_MAXPRI);
+            childev->start(loop);
             loop->activecnt--; /* child watcher should not keep loop alive */
         #endif
     }
@@ -100,7 +96,7 @@ void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
     {
         loop->async_pending = 0;
 
-        for (i = loop->asynccnt; i--; )
+        for (i = loop->asyncs.size(); i--; )
             if (loop->asyncs [i]->get_sent())
             {
                 loop->asyncs [i]->set_sent(0);
@@ -109,6 +105,11 @@ void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
     }
     #endif
 }
+void ev_loop::ev_break (int how)
+{
+    loop_done = how;
+}
+
 void ev_loop::loop_init (unsigned int flags) noexcept
 {
     if (!backend)
@@ -165,15 +166,24 @@ void ev_loop::loop_init (unsigned int flags) noexcept
 
         fdwtcher = new FdWatcher(this);
         timer = new Timer(this);
-
-        ev_prepare_init (&pending_w, pendingcb);
+        pending_w = new ev_watcher();
+        pending_w->init(pendingcb);
 
         #if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
-        pipe_w.ev_watcher::init(pipecb);
-        pipe_w.set_priority(EV_MAXPRI);
+        pipe_w = new ev_io();
+        pipe_w->ev_watcher::init(pipecb);
+        pipe_w->set_priority(EV_MAXPRI);
         #endif
     }
 }
+
+void ev_loop::queue_events ( ev_watcher **events, int eventcnt, int type)
+{
+    int i;
+    for (i = 0; i < eventcnt; ++i)
+    ev_feed_event (events[i], type);
+}
+
 void ev_loop::ev_feed_event (ev_watcher *w, int revents) noexcept
 {
 
@@ -239,6 +249,8 @@ void ev_loop::time_update (double max_block)
 # endif
 
 }
+ev_loop::ev_loop(){}
+
 int ev_loop::run (int flags)
 {
 #if EV_FEATURE_API
@@ -262,13 +274,14 @@ int ev_loop::run (int flags)
                 curpid = getpid ();
                 postfork = 1;
             }
+#if 0
 
-#if EV_FORK_ENABLE
+//#if EV_FORK_ENABLE
         /* we might have forked, so queue fork handlers */
         if (postfork)
             if (forkcnt)
             {
-                queue_events (EV_A_ (W *)forks, forkcnt, EV_FORK);
+                queue_events ( (W *)forks, forkcnt, EV_FORK);
                 EV_INVOKE_PENDING;
             }
 #endif
@@ -277,7 +290,7 @@ int ev_loop::run (int flags)
         /* queue prepare watchers (and execute them) */
         if (preparecnt)
         {
-            queue_events (EV_A_ (W *)prepares, preparecnt, EV_PREPARE);
+            queue_events ((ev_watcher **)prepares, preparecnt, EV_PREPARE);
             ev_invoke_pending();
         }
 #endif
@@ -286,11 +299,12 @@ int ev_loop::run (int flags)
             break;
 
         /* we might have forked, so reify kernel state if necessary */
+        /*
         if (postfork)
             loop_fork (EV_A);
-
+        */
         /* update fd-related kernel structures */
-        fdwtcher->fd_reify ();
+        fdwtcher->fd_reify();
 
         /* calculate blocking time */
         {
@@ -318,16 +332,15 @@ int ev_loop::run (int flags)
 #endif
 #if !EV_PERIODIC_ENABLE
                 /* 没有周期但具有单调时钟，无需任何时间跳变检测，因此睡眠时间更长 */
-            if (ecb_expect_true (have_monotonic))
-              waittime = EV_TS_CONST (MAX_BLOCKTIME2);
+            if (1)
+              waittime = MAX_BLOCKTIME2;
 #endif
 
                 if (timercnt)
                 {
-                    double to = ANHE_at (timers [HEAP0]) - mn_now;
+                    double to = timer->top()->get_at() - mn_now;
                     if (waittime > to) waittime = to;
                 }
-
 #if EV_PERIODIC_ENABLE
                 if (periodiccnt)
                 {
@@ -369,18 +382,18 @@ int ev_loop::run (int flags)
             ++loop_count;
 #endif
             assert ((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
-            printf("befoe_backend_poll%f\n",get_clock());
+            printf("befoe_backend_poll%f\n", get_clock());
             printf("waittime%f\n",waittime);
             mutilplexing->backend_poll (this, waittime);   // 里面有epoll_wait
             assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
-            printf("after_backend_poll%f\n",get_clock());
+            printf("after_backend_poll%f\n", get_clock());
 
             pipe_write_wanted = 0; /* just an optimisation, no fence needed */
 
             if (pipe_write_skipped)
             {
-                assert (("libev: pipe_w not active, but pipe not written", ev_is_active (&pipe_w)));
-                ev_feed_event (&pipe_w, EV_CUSTOM);
+                assert (("libev: pipe_w not active, but pipe not written", pipe_w->get_active()));
+                ev_feed_event (pipe_w, EV_CUSTOM);
             }
 
             /* update ev_rt_now, do magic */
@@ -389,17 +402,18 @@ int ev_loop::run (int flags)
 
         /* queue pending timers and reschedule them */
         timer->timers_reify (); /* relative timers called last */
-//#if EV_PERIODIC_ENABLE
-# if 0
+#if EV_PERIODIC_ENABLE
         periodics_reify (EV_A); /* absolute timers called first */
 #endif
 
-#if EV_IDLE_ENABLE
+#if 0
+
+//#if EV_IDLE_ENABLE
         /* queue idle watchers unless other events are pending */
         idle_reify (EV_A);
 #endif
-
-#if EV_CHECK_ENABLE
+#if 0
+//#if EV_CHECK_ENABLE
         /* queue check watchers, to be executed first */
         if (checkcnt)
             queue_events (EV_A_ (W *)checks, checkcnt, EV_CHECK);
@@ -439,7 +453,7 @@ void ev_loop::ev_invoke_pending ()
             auto p = pendings[pendingpri].back();
             pendings[pendingpri].pop_back();
             p.w->set_pending(0);
-            (p.w)->get_cb() (this, p.w, p.events);
+            p.w->call_back( this, p.w, p.events);
         }
     }
     while (pendingpri);

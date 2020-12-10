@@ -12,15 +12,15 @@
 #include "ev.h"
 #include "ev_io.h"
 #include "watcher.h"
-class Multiplexing;
-class ev_loop;
-class ev_io;
+
+
 
 #define EV_ANFD_REIFY 1
 
-
-struct ANFD
+class ev_io;
+class ANFD
 {
+public:
     std::forward_list<ev_io*> list;
     unsigned char events; /* the events watched for */
     unsigned char reify;  /* flag set when this ANFD needs reification (EV_ANFD_REIFY, EV__IOFDSET) */
@@ -32,7 +32,7 @@ struct ANFD
     unsigned int egen;    /* generation counter to counter epoll bugs */
 #endif
 };
-
+class ANFD;
 class FdWatcher {
 public:
 
@@ -45,10 +45,12 @@ public:
     void fd_change (int fd, int flags);
     void fd_rearm_all ();
     void fd_reify ();
-
-    std::map<int,ANFD> anfd;
+    void remove(int fd, ev_io* w);
+    void push_front(int fd, ev_io* w);
+    size_t size();
 private:
     ev_loop * loop;
+    std::map<int,ANFD> anfd;
     std::vector<int> fdchanges;
     std::vector<int> fdkills;
 

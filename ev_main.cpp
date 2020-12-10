@@ -7,25 +7,25 @@
 #include "watcher.h"
 #include "ev_timer.h"
 #include "ev_loop.h"
+#include "ev_io.h"
 #include <cstdio> // for puts
 
 // every watcher type has its own typedef'd struct
 // with the name ev_TYPE
-ev_io stdin_watcher;
-ev_timer timeout_watcher;
+
 
 // all watcher callbacks have a similar signature
 // this callback is called when data is readable on stdin
 static void
-stdin_cb (EV_P_ ev_io *w, int revents)
+stdin_cb (ev_loop* loop, ev_io *w, int revents)
 {
 puts ("stdin ready");
 // for one-shot events, one must manually stop the watcher
 // with its corresponding stop function.
-ev_io_stop (EV_A_ w);
+
 
 // this causes all nested ev_run's to stop iterating
-ev_break (EV_A_ EVBREAK_ALL);
+loop->ev_break ( EVBREAK_ALL);
 }
 
 // another callback, this time for a time-out
@@ -34,12 +34,12 @@ timeout_cb (ev_loop* loop, ev_timer *w, int revents)
 {
 puts ("timeout");
 // this causes the innermost ev_run to stop iterating
-ev_break (EV_A_ EVBREAK_ONE);
 }
 
-int
-main (void)
+int main ()
 {
+    ev_io stdin_watcher;
+    ev_timer timeout_watcher;
     // use the default event loop unless you have special needs
     struct ev_loop *loop = ev_default_loop();
 

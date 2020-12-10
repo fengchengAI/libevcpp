@@ -7,13 +7,17 @@
 #include <array>
 #include <memory>
 #include <csignal>
-#include "watcher.h"
 #include "ev.h"
-#include "anfd.h"
-#include "ev_epoll.h"
-#include "ev_timer.h"
-#include "ev_io.h"
+
 #define NUMPRI 5
+
+class ev_watcher;
+class FdWatcher;
+class Multiplexing;
+class ev_async;
+class ev_signal;
+class Timer;
+class ev_io;
 struct ANPENDING
 {
     ev_watcher * w;
@@ -60,17 +64,28 @@ enum {
     EVRUN_ONCE   = 2  /* block *once* only */
 };
 
+typedef ev_watcher ev_prepare;
+typedef ev_watcher ev_idle;
+typedef ev_watcher ev_check;
+
+typedef ev_watcher ev_fork;
+
+typedef ev_watcher ev_cleanup;
+
+static ev_signal *childev;
+
 class ev_loop {
 public:
-
+    ev_loop();
     int run (int flags);
     void ev_invoke_pending();
+    void queue_events ( ev_watcher **events, int eventcnt, int type);
 
     void loop_init (unsigned int flags) noexcept;
     void ev_feed_event (ev_watcher *w, int revents) noexcept;
     void time_update (double max_block);
 
-
+    void ev_break (int how);
     double ev_rt_now;
     double now_floor; /* last time we refreshed rt_time */
     double mn_now;    /* monotonic clock "now" 在创建loop的时候初始化，每次update_time更新这个*/
@@ -88,7 +103,7 @@ public:
     //int pendingmax [NUMPRI];
     //std::array<int, NUMPRI> pendingcnt; //记录的是每个等级已经记录的监视器个数。也是用这个对 w_->pending进行排序，即使用++pendingcnt [NUMPRI]对w_->pending赋值
     int pendingpri; /* highest priority currently pending */
-     ev_prepare pending_w; /* dummy pending watcher */
+    ev_watcher* pending_w; /* dummy pending watcher */
 
     double io_blocktime;
     double timeout_blocktime;
@@ -114,7 +129,7 @@ public:
     //int anfdmax;
 
     int evpipe [2];
-    ev_io pipe_w;
+    ev_io *pipe_w;
     sig_atomic_t pipe_write_wanted;
     sig_atomic_t pipe_write_skipped;
 
@@ -129,7 +144,7 @@ public:
     Multiplexing * mutilplexing;
 
 
-    ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
+    //ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
 
     int timermax;
     int timercnt;
@@ -155,10 +170,8 @@ public:
     sig_atomic_t async_pending;
     //struct ev_async ** asyncs;
     //std::vector<std::shared_ptr<ev_async> > asyncs;
-    std::vector<ev_async* > asyncs;
+    std::vector<ev_async*> asyncs;
 
-    int asyncmax;
-    int asynccnt;
 #endif
 
 #if EV_USE_INOTIFY 
@@ -171,7 +184,7 @@ public:
     sig_atomic_t sig_pending;
 #if EV_USE_SIGNALFD 
     int sigfd;
-    ev_io sigfd_w;
+    ev_io* sigfd_w;
     sigset_t sigfd_set;
 #endif
 
@@ -195,6 +208,6 @@ void * userdata;
 
 };
 
-static  ev_loop *ev_default_loop (unsigned int flags = 0) noexcept
+ev_loop *ev_default_loop (unsigned int flags = 0);
 
 #endif //LIBEVCPP_EV_LOOP_H

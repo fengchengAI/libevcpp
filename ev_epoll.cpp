@@ -69,11 +69,23 @@
 
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "ev_loop.h"
 #include "ev_epoll.h"
 #include "watcher.h"
 #include "ev.h"
-#define EV_EMASK_EPERM 0x80
+#include "anfd.h"
+#include "utils.h"
+
+Multiplexing * selectMultiplexing( int condition ){
+    switch (condition) {
+        case  0x00000004U:
+            return new ev_epoll();
+    }
+}
+class FdWatcher;
+class ev_loop;
+const int  EV_EMASK_EPERM = 0x80;
 
 void ev_epoll::backend_modify (ev_loop *loop, int fd, int oev, int nev)
 {

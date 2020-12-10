@@ -5,17 +5,30 @@
 #include "watcher.h"
 
 ev_watcher::ev_watcher():
-            active(0),pending(0),priority(0),data(nullptr),cb(nullptr){}
+            active(0),pending(0),priority(0),data(nullptr){}
+
+void ev_watcher::call_back(ev_loop *loop, ev_watcher *w, int event) {
+    cb(loop, w, event);
+}
+
+void ev_watcher::set_data(void *d_){
+  data= d_;
+}
 void ev_watcher::init(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_)
 {
     active  = pending = priority =  0;
     data = nullptr;
     cb = cb_;
 }
-void ev_watcher::set_cb(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_)
-{
-    cb = cb_;
+
+void ev_watcher::clear_pending(){
+    if (pending)
+    {
+        loop->pendings [priority-EV_MINPRI][pending - 1].w = loop->pending_w;
+        pending = 0;
+    }
 }
+
 void ev_watcher::set_priority(int pri_)
 {
     priority = pri_;
@@ -59,4 +72,8 @@ void ev_watcher::stop(){
 }
 ev_loop * ev_watcher::get_loop(){
     return loop;
+}
+
+void ev_watcher::set_loop(ev_loop * loop_){
+    loop = loop_;
 }

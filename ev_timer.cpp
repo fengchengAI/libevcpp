@@ -33,16 +33,7 @@ ev_timer * Timer::top(){
 size_t Timer::size(){
     return timer_queue.size();
 }
-/*
-void Timer::push(std::pair<ev_watcher *, double> t){
-    anhe.push_back(t);
-}
-std::pair<ev_watcher *, double> Timer::pop(){
-    auto t = anhe.back();
-    anhe.pop_back();
-    return t;
-}
-*/
+
 void Timer::timers_reify ()
 {
     printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
@@ -68,7 +59,9 @@ void Timer::timers_reify ()
     }
 }
 void ev_timer::stop(){
-    clear_pending();
+
+    ev_watcher::clear_pending();
+
     if (!get_active())
         return;
 
@@ -77,13 +70,7 @@ void ev_timer::stop(){
     ev_watcher::stop();
 
 }
-void ev_timer::clear_pending(){
-    if (get_pending())
-    {
-        get_loop()->pendings [get_priority()-EV_MINPRI][get_pending() - 1].w = &get_loop()->pending_w;
-        set_pending(0);
-    }
-}
+
 ev_timer::ev_timer():ev_watcher(),at(0),repeat(0)
 {
 
@@ -95,6 +82,8 @@ void ev_timer::init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb_, do
 }
 void ev_timer::start (ev_loop *loop) noexcept
 {
+    set_loop(loop);
+
     if (get_active())
         return;
 
@@ -108,12 +97,9 @@ void ev_timer::start (ev_loop *loop) noexcept
     //++timercnt;
     loop->timer->push(this);
     ev_start (loop->timer->size());
-    /*
-    printf("%d\n",sizeof(timers));
-    array_needsize (ANHE, timers, timermax, ev_active (w) + 1, array_needsize_noinit);
-    ANHE_w (timers [ev_active (w)]) = (WT)w;
-    ANHE_at_cache (timers [ev_active (w)]);
-    upheap (timers, ev_active (w));
-    */
-    /*assert (("libev: internal timer heap corruption", timers [ev_active (w)] == (WT)w));*/
+
+}
+
+void ev_timer::call_back(ev_loop *loop, ev_timer *w, int event){
+    cb(loop, w, event);
 }

@@ -5,7 +5,7 @@
 #include "anfd.h"
 
 FdWatcher::FdWatcher(ev_loop * loop_){
-loop = loop_;
+    loop = loop_;
 }
 
 ANFD & FdWatcher::get_anfd(int index){
@@ -25,6 +25,17 @@ void FdWatcher::fd_event_nocheck (int fd, int revents)
         if (ev)
             loop->ev_feed_event (dynamic_cast<ev_watcher*>(i), ev);
     }
+}
+
+void FdWatcher::push_front(int fd, ev_io* w){
+    anfd[fd].list.push_front(w);
+}
+void FdWatcher::remove(int fd, ev_io* w){
+    anfd[fd].list.remove(w);
+}
+
+size_t FdWatcher::size(){
+    return anfd.size();
 }
 
 void FdWatcher::fd_kill (int fd)
@@ -84,18 +95,16 @@ void FdWatcher::fd_reify ()
 
     /* 通常，fdchangecnt不会更改。 如果有，则添加了新的fds。
     这是一种罕见的情况（请参见此函数中的开始注释），因此我们将它们复制到前端，并希望后端能够处理这种情况。
-     */
+    */
 }
 
 
 void FdWatcher::fd_rearm_all ()
 {
     for (auto &i:anfd){
-
         if(i.second.events)
             i.second.events = 0;
             i.second.emask = 0;
             fd_event(i.first, EV__IOFDSET | EV_ANFD_REIFY);
     }
-
 }
