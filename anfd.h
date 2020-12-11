@@ -18,9 +18,8 @@
 #define EV_ANFD_REIFY 1
 
 class ev_io;
-class ANFD
+struct ANFD
 {
-public:
     std::forward_list<ev_io*> list;
     unsigned char events; /* the events watched for */
     unsigned char reify;  /* flag set when this ANFD needs reification (EV_ANFD_REIFY, EV__IOFDSET) */
@@ -32,7 +31,6 @@ public:
     unsigned int egen;    /* generation counter to counter epoll bugs */
 #endif
 };
-class ANFD;
 class FdWatcher {
 public:
 

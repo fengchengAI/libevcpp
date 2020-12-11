@@ -273,11 +273,11 @@ int ev_epoll::epoll_epoll_create ()
 
 void ev_epoll::backend_init (ev_loop *loop, int flags)
 {
-    if (backend_fd = epoll_epoll_create () < 0)
+    backend_fd = epoll_epoll_create ();
+    if (backend_fd  < 0)
         return ;
 
     backend_mintime = 1e-3; /* epoll does sometimes return early, this is just to avoid the worst */
-
 
     epoll_eventmax = 64; /* initial number of events receivable per poll */
     epoll_events = (struct epoll_event *)malloc(sizeof (struct epoll_event) * epoll_eventmax);

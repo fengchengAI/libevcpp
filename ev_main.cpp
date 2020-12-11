@@ -16,23 +16,23 @@
 
 // all watcher callbacks have a similar signature
 // this callback is called when data is readable on stdin
-static void
-stdin_cb (ev_loop* loop, ev_io *w, int revents)
+void stdin_cb (ev_loop* loop, ev_io *w, int revents)
 {
-puts ("stdin ready");
-// for one-shot events, one must manually stop the watcher
-// with its corresponding stop function.
+    puts ("stdin ready");
+    w->stop();
+    // for one-shot events, one must manually stop the watcher
+    // with its corresponding stop function.
 
-
-// this causes all nested ev_run's to stop iterating
-loop->ev_break ( EVBREAK_ALL);
+    // this causes all nested ev_run's to stop iterating
+    loop->ev_break ( EVBREAK_ALL);
 }
 
 // another callback, this time for a time-out
-static void
-timeout_cb (ev_loop* loop, ev_timer *w, int revents)
+void timeout_cb (ev_loop* loop, ev_timer *w, int revents)
 {
 puts ("timeout");
+    loop->ev_break ( EVBREAK_ONE);
+
 // this causes the innermost ev_run to stop iterating
 }
 
@@ -41,7 +41,7 @@ int main ()
     ev_io stdin_watcher;
     ev_timer timeout_watcher;
     // use the default event loop unless you have special needs
-    struct ev_loop *loop = ev_default_loop();
+    struct ev_loop *loop = ev_default_loop(EVFLAG_SIGNALFD);
 
     // initialise an io watcher, then start it
     // this one will watch for stdin to become readable

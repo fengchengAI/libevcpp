@@ -102,6 +102,7 @@ void ev_signal::start(ev_loop *loop){
           fd_intern (loop->sigfd); /* doing it twice will not hurt */
 
           sigemptyset (&loop->sigfd_set);
+          loop->sigfd_w = new ev_io();
           loop->sigfd_w->init(sigfdcb, loop->sigfd, EV_READ);
           loop->sigfd_w->set_priority(EV_MAXPRI);
           loop->sigfd_w->start(loop);
@@ -110,17 +111,17 @@ void ev_signal::start(ev_loop *loop){
         }
     }
 
-  if (loop->sigfd >= 0)
-    {
-      /* TODO: check .head */
-      sigaddset (&loop->sigfd_set, signum);
-      sigprocmask (SIG_BLOCK, &loop->sigfd_set, 0);
+    if (loop->sigfd >= 0)
+      {
+        /* TODO: check .head */
+        sigaddset (&loop->sigfd_set, signum);
+        sigprocmask (SIG_BLOCK, &loop->sigfd_set, 0);
 
-      signalfd (loop->sigfd, &loop->sigfd_set, 0);
-    }
+        signalfd (loop->sigfd, &loop->sigfd_set, 0);
+      }
 
-    ev_start (1);
-    signals [signum - 1].head.push_front(this);
+      ev_start (1);
+      signals [signum - 1].head.push_front(this);
 }
 
 void childcb (ev_loop* loop, ev_signal * w, int revents)

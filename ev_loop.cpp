@@ -336,7 +336,7 @@ int ev_loop::run (int flags)
               waittime = MAX_BLOCKTIME2;
 #endif
 
-                if (timercnt)
+                if (timer->size())
                 {
                     double to = timer->top()->get_at() - mn_now;
                     if (waittime > to) waittime = to;

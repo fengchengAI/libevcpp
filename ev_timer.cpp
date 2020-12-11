@@ -3,7 +3,6 @@
 //
 
 #include "ev_timer.h"
-
 void ev_timer::set_at(double at_){
     at = at_;
 }
@@ -18,18 +17,23 @@ double ev_timer::get_repeat(){
     return repeat;
 }
 
-Timer::Timer(ev_loop * loop_){
+Timer::Timer(ev_loop * loop_): timer_queue( [](ev_timer * a1, ev_timer * a2) { return a1->get_at() > a2->get_at(); })
+{
     loop = loop_;
 }
+
 void Timer::push(ev_timer * w){
     timer_queue.push(w);
 }
+
 void Timer::pop(){
     timer_queue.pop();
 }
+
 ev_timer * Timer::top(){
-    timer_queue.top();
+    return timer_queue.top();
 }
+
 size_t Timer::size(){
     return timer_queue.size();
 }
@@ -49,11 +53,14 @@ void Timer::timers_reify ()
                 if(t->get_at()<loop->mn_now)
                     t->set_at(loop->mn_now);
                 assert (("libev: negative ev_timer repeat value found while processing timers", timer_queue.top()->get_repeat() > 0.));
-                timer_queue.pop();
                 timer_queue.push(t);
             }else
+            {
                 timer_queue.top()->stop();
+                //timer_queue.pop();
+            }
             loop->ev_feed_event(timer_queue.top(),EV_TIMER);
+            timer_queue.pop();
 
         }while (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
     }

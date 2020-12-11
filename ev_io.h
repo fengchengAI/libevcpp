@@ -15,7 +15,6 @@ class ev_io : public ev_watcher
 public:
     ev_io();
     ev_io(std::function<void(ev_loop *, ev_io *, int)> cb, int fd_,int events_);
-    //void init(void(*cb)(ev_loop *, ev_io *, int));
     void init(std::function<void(ev_loop *, ev_io *, int)> cb, int fd_,int events_);
     void call_back(ev_loop *loop, ev_io *w, int) ;
 

@@ -81,7 +81,7 @@ public:
     void ev_invoke_pending();
     void queue_events ( ev_watcher **events, int eventcnt, int type);
 
-    void loop_init (unsigned int flags) noexcept;
+    void loop_init (unsigned int flags ) noexcept;
     void ev_feed_event (ev_watcher *w, int revents) noexcept;
     void time_update (double max_block);
 

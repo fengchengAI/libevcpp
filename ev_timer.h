@@ -20,7 +20,6 @@ public:
     void stop() ;
     void call_back(ev_loop *loop, ev_timer *w, int) ;
 
-    void clear_pending();
     void set_repeat(double );
     double get_repeat();
 
@@ -41,20 +40,22 @@ struct ev_watcher_time{
     double at;
 };
 */
-//auto cmp = [](ev_timer * a1, ev_timer * a2) { return a1->get_at() > a2->get_at(); };
+/*
 struct cmp{
     bool operator ()( ev_timer * a, ev_timer * b ) {//返回true，a的优先级大于b
         //x大的排在队前部；x相同时，y大的排在队前部
         return a->get_at() > b->get_at();
     }
 };
+*/
 class Timer{
 public:
     Timer(ev_loop *loop);
-    std::priority_queue<ev_timer *, std::vector<ev_timer *>, cmp> timer_queue;
+    std::priority_queue<ev_timer *, std::vector<ev_timer *>,  std::function<bool(ev_timer * a1, ev_timer * a2)> > timer_queue;
 
     void timers_reify ();
 
+   // auto cmp =
 
     void push(ev_timer *);
     ev_timer * top();
