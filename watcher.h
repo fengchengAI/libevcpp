@@ -66,7 +66,7 @@ public:
     void pri_adjust ();
     void ev_start (int active_);
     void stop();
-    void call_back(ev_loop *loop, ev_watcher *w, int) ;
+    void call_back(ev_loop *loop, void *w, int) ;
     ev_loop *get_loop();
     void set_loop(ev_loop *);
 

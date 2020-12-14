@@ -3,6 +3,7 @@
 //
 
 #include "ev_timer.h"
+#include "utils.h"
 void ev_timer::set_at(double at_){
     at = at_;
 }
@@ -17,54 +18,76 @@ double ev_timer::get_repeat(){
     return repeat;
 }
 
-Timer::Timer(ev_loop * loop_): timer_queue( [](ev_timer * a1, ev_timer * a2) { return a1->get_at() > a2->get_at(); })
+template <typename Type> Timer<Type>::Timer(ev_loop * loop_): timer_queue( [](Type * a1, Type * a2) { return a1->get_at() > a2->get_at(); })
 {
     loop = loop_;
 }
-
-void Timer::push(ev_timer * w){
+template <typename Type>
+void Timer<Type>::push(Type * w){
     timer_queue.push(w);
 }
 
-void Timer::pop(){
+template <typename Type>
+void Timer<Type>::pop(){
     timer_queue.pop();
 }
 
-ev_timer * Timer::top(){
+template <typename Type>
+Type * Timer<Type>::top(){
     return timer_queue.top();
 }
 
-size_t Timer::size(){
+template <typename Type>
+size_t Timer<Type>::size(){
     return timer_queue.size();
 }
 
-void Timer::timers_reify ()
+template <typename Type>
+void Timer<Type>::timers_reify ()
 {
-    printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
-    printf("mn_now%f\n",loop->mn_now);
+    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
+    //printf("mn_now%f\n",loop->mn_now);
     if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
     {
         do
         {
-            if(timer_queue.top()->get_repeat())
-            {
-                auto t = timer_queue.top();
-                t->set_at(t->get_at()+t->get_repeat());
-                if(t->get_at()<loop->mn_now)
-                    t->set_at(loop->mn_now);
-                assert (("libev: negative ev_timer repeat value found while processing timers", timer_queue.top()->get_repeat() > 0.));
-                timer_queue.push(t);
-            }else
-            {
-                timer_queue.top()->stop();
-                //timer_queue.pop();
-            }
             loop->ev_feed_event(timer_queue.top(),EV_TIMER);
             timer_queue.pop();
 
         }while (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
     }
 }
+template <typename Type>
+void Timer<Type>::periodics_reify ()
+{
+    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
+    //printf("mn_now%f\n",loop->mn_now);
+    if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
+    {
+        do
+        {
+            loop->ev_feed_event(timer_queue.top(),EV_PERIODIC);
+            timer_queue.pop();
+
+        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now);
+    }
+}
+
+template <typename Type>
+void Timer<Type>::periodics_reschedule ()
+{
+    std::vector<ev_periodic *> temp;
+    while (timer_queue.size()){
+        temp.push_back(timer_queue.top);
+        timer_queue.pop;
+    }
+    for(auto t:temp){
+        t->set_at(tm_to_time(t->get_t()));
+        timer_queue.push(t);
+    }
+}
+
+
 void ev_timer::stop(){
 
     ev_watcher::clear_pending();
@@ -94,7 +117,7 @@ void ev_timer::start (ev_loop *loop) noexcept
     if (get_active())
         return;
 
-    set_at(get_at()+loop->mn_now);  // 这里的到期时间是，创建后的时间间隔
+    at = at+loop->mn_now; // 这里的到期时间是，创建后的时间间隔
 
     assert (("libev: ev_timer_start called with negative timer repeat value", get_repeat() >= 0.));
 
@@ -107,6 +130,58 @@ void ev_timer::start (ev_loop *loop) noexcept
 
 }
 
-void ev_timer::call_back(ev_loop *loop, ev_timer *w, int event){
-    cb(loop, w, event);
+void ev_timer::call_back(ev_loop *loop, void *w, int event){
+    cb(loop, static_cast<ev_timer*>(w), event);
+}
+
+void ev_periodic::init(std::function<void(ev_loop *, ev_periodic *, int)> cb_, double at_, tm *t_) {
+    cb = cb_;
+    at = at_;
+    t = t_;
+}
+
+void ev_periodic::set_at(double at_) {
+    at = at_;
+}
+
+double ev_periodic::get_at() {
+    return at;
+}
+
+void ev_periodic::start(ev_loop *loop) noexcept {
+    set_loop(loop);
+
+    if (get_active())
+        return;
+
+#if EV_USE_TIMERFD
+    if (loop->timerfd == -2)
+        get_loop()->evtimerfd_init ();
+#endif
+
+    at = tm_to_time(t);
+
+    loop->periodic->push(this);
+    ev_start (loop->periodic->size());
+}
+
+void ev_periodic::stop() {
+    ev_watcher::clear_pending();
+
+    if (!get_active())
+        return;
+    ev_watcher::stop();
+}
+
+void ev_periodic::again() {
+    stop();
+    start(get_loop());
+}
+
+tm *ev_periodic::get_t() {
+    return t;
+}
+
+void ev_periodic::set_t(tm * t_) {
+    t = t_;
 }

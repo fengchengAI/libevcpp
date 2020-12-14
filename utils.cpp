@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctime>
+#include <iostream>
 int enable_secure (void)
 {
 
@@ -67,5 +68,12 @@ void fd_intern (int fd)
 {
     fcntl (fd, F_SETFD, FD_CLOEXEC);
     fcntl (fd, F_SETFL, O_NONBLOCK);
+}
+
+double tm_to_time(tm * t) {
+    time_t temp = mktime(t);
+    if (temp==-1)
+        std::cerr<<"convert time error"<<std::endl;
+    return temp;
 }
 

@@ -14,6 +14,9 @@ public:
     virtual void backend_init(ev_loop *loop,int flag) = 0;
     virtual void backend_modify(ev_loop * loop, int fd, int oev, int nev) = 0;
     virtual void backend_poll(ev_loop * loop, double timeout) = 0;
+    virtual void fork(ev_loop * loop);
+
+    virtual void destroy() = 0;
 };
 
 class ev_epoll : public Multiplexing{
@@ -31,6 +34,8 @@ public:
     void backend_init(ev_loop *loop,int flag) override;
     void backend_modify(ev_loop * loop, int fd, int oev, int nev) override;
     void backend_poll(ev_loop * loop, double timeout) override;
+    void destroy() override;
+    void fork(ev_loop * loop);
 };
 
 

@@ -7,8 +7,8 @@
 ev_watcher::ev_watcher():
             active(0),pending(0),priority(0),data(nullptr){}
 
-void ev_watcher::call_back(ev_loop *loop, ev_watcher *w, int event) {
-    cb(loop, w, event);
+void ev_watcher::call_back(ev_loop *loop, void *w, int event) {
+    cb(loop, static_cast<ev_watcher*>(w), event);
 }
 
 void ev_watcher::set_data(void *d_){

@@ -8,15 +8,17 @@
 #include <memory>
 #include <csignal>
 #include "ev.h"
+#include "ev_timer.h"
 
 #define NUMPRI 5
+
+static ev_loop *ev_default_loop_ptr = nullptr;
 
 class ev_watcher;
 class FdWatcher;
 class Multiplexing;
 class ev_async;
 class ev_signal;
-class Timer;
 class ev_io;
 struct ANPENDING
 {
@@ -79,12 +81,15 @@ public:
     ev_loop();
     int run (int flags);
     void ev_invoke_pending();
-    void queue_events ( ev_watcher **events, int eventcnt, int type);
+    void queue_events ( std::vector<ev_watcher *>events, int type);
+    void destroy();
 
     void loop_init (unsigned int flags ) noexcept;
     void ev_feed_event (ev_watcher *w, int revents) noexcept;
     void time_update (double max_block);
-
+    void evtimerfd_init ();
+    void idle_reify ();
+    void loop_fork();
     void ev_break (int how);
     double ev_rt_now;
     double now_floor; /* last time we refreshed rt_time */
@@ -94,9 +99,7 @@ public:
     std::vector<ev_watcher*> base_event;
     // TODO ? 这里是什么？
     /* 用于事件的反向馈送对于一个到期的时间事件，将它放进这里 */
-    ev_watcher * rfeeds;
-    int rfeedmax;
-    int rfeedcnt;
+
     
     // ANPENDING *pendings [NUMPRI];  // 二维数组，不同的等级监视的事件类型。指向NUMPRI大小的数组，每个数组指向pendings类型地址
     std::array<std::vector<ANPENDING>,NUMPRI> pendings;
@@ -126,7 +129,7 @@ public:
     //ANFD * anfds;
     FdWatcher*  fdwtcher;
     Timer *timer;
-    //int anfdmax;
+
 
     int evpipe [2];
     ev_io *pipe_w;
@@ -136,40 +139,27 @@ public:
     pid_t curpid;
 
     char postfork;  /* true if we need to recreate kernel state after fork */
-    /*
-    int * fdchanges; //指向文件描述符
-    int fdchangemax;
-    int fdchangecnt;
-    */
+
     Multiplexing * mutilplexing;
 
 
     //ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
 
-    int timermax;
-    int timercnt;
 
-#if EV_PERIODIC_ENABLE 
-    ANHE * periodics;  // 周期性事件
-    int periodicmax;
-    int periodiccnt;
+#if EV_IDLE_ENABLE
+    std::array<std::vector<ev_idle *>,NUMPRI> idles;
+#endif
+
+#if EV_PERIODIC_ENABLE
+    Timer *periodic;
 #endif
 
     int idleall; /* total number */
-
-    ev_prepare ** prepares;
-    int preparemax;
-    int preparecnt;
-
-    ev_check ** checks;
-    int checkmax;
-    int checkcnt;
-
+    std::vector<ev_prepare *> prepares;
+    std::vector<ev_check *> checks;
 
 #if EV_ASYNC_ENABLE 
     sig_atomic_t async_pending;
-    //struct ev_async ** asyncs;
-    //std::vector<std::shared_ptr<ev_async> > asyncs;
     std::vector<ev_async*> asyncs;
 
 #endif
@@ -199,7 +189,6 @@ public:
     unsigned int loop_count; /* total number of loop iterations/blocks */
     unsigned int loop_depth; /* #ev_run enters - #ev_run leaves */
 
-void * userdata;
 /* C++ doesn't support the ev_loop_callback typedef here. stinks. */
 
  std::function<void()> invoke_cb;

@@ -283,7 +283,7 @@ void ev_epoll::backend_init (ev_loop *loop, int flags)
     epoll_events = (struct epoll_event *)malloc(sizeof (struct epoll_event) * epoll_eventmax);
 }
 
-void ev_epoll::epoll_destroy (ev_loop * loop)
+void ev_epoll::destroy ()
 {
     free(epoll_events);
     epoll_events = nullptr;
@@ -292,7 +292,7 @@ void ev_epoll::epoll_destroy (ev_loop * loop)
 }
 
 
-void ev_epoll::epoll_fork (ev_loop * loop)
+void ev_epoll::fork (ev_loop * loop)
 {
     close (backend_fd);
 
@@ -301,4 +301,6 @@ void ev_epoll::epoll_fork (ev_loop * loop)
 
     loop->fdwtcher->fd_rearm_all ();
 }
+
+
 

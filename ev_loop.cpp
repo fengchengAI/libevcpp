@@ -2,6 +2,7 @@
 // Created by feng on 2020/12/2.
 //
 #include <unistd.h>
+#include <sys/timerfd.h>
 #include "ev_loop.h"
 #include "utils.h"
 #include <cstdlib>
@@ -18,6 +19,7 @@
 #include "ev_signal.h"
 #define EVBREAK_RECURSE 0x80
 
+
 void pendingcb (ev_loop *loop, ev_watcher *w, int revents)
 {
 }
@@ -28,7 +30,6 @@ void pendingcb (ev_loop *loop, ev_watcher *w, int revents)
   (sizeof (time_t) >= 8     ? 10000000000000.  \
    : 0 < (time_t)4294967295 ?     4294967295.  :   2147483647.)
 
-static ev_loop *ev_default_loop_ptr = nullptr;
 
 
 ev_loop *ev_default_loop (unsigned int flags )
@@ -165,7 +166,8 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         mutilplexing->backend_init(this,flags);
 
         fdwtcher = new FdWatcher(this);
-        timer = new Timer(this);
+        timer = new Timer<ev_timer>(this);
+        periodic = new Timer<ev_periodic>(this);
         pending_w = new ev_watcher();
         pending_w->init(pendingcb);
 
@@ -177,11 +179,10 @@ void ev_loop::loop_init (unsigned int flags) noexcept
     }
 }
 
-void ev_loop::queue_events ( ev_watcher **events, int eventcnt, int type)
+void ev_loop::queue_events ( std::vector<ev_watcher *>events, int type)
 {
-    int i;
-    for (i = 0; i < eventcnt; ++i)
-    ev_feed_event (events[i], type);
+    for(auto w : events)
+        ev_feed_event (w, type);
 }
 
 void ev_loop::ev_feed_event (ev_watcher *w, int revents) noexcept
@@ -288,9 +289,9 @@ int ev_loop::run (int flags)
 
 #if EV_PREPARE_ENABLE
         /* queue prepare watchers (and execute them) */
-        if (preparecnt)
+        if (!prepares.empty())
         {
-            queue_events ((ev_watcher **)prepares, preparecnt, EV_PREPARE);
+            queue_events (prepares, EV_PREPARE);
             ev_invoke_pending();
         }
 #endif
@@ -299,10 +300,10 @@ int ev_loop::run (int flags)
             break;
 
         /* we might have forked, so reify kernel state if necessary */
-        /*
+
         if (postfork)
             loop_fork (EV_A);
-        */
+
         /* update fd-related kernel structures */
         fdwtcher->fd_reify();
 
@@ -342,9 +343,9 @@ int ev_loop::run (int flags)
                     if (waittime > to) waittime = to;
                 }
 #if EV_PERIODIC_ENABLE
-                if (periodiccnt)
+                if (periodic->size())
                 {
-                    double to = ANHE_at (periodics [HEAP0]) - ev_rt_now;
+                    double to = timer->top()->get_at() - ev_rt_now;
                     if (waittime > to) waittime = to;
                 }
 #endif
@@ -382,11 +383,11 @@ int ev_loop::run (int flags)
             ++loop_count;
 #endif
             assert ((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
-            printf("befoe_backend_poll%f\n", get_clock());
-            printf("waittime%f\n",waittime);
+            //printf("befoe_backend_poll%f\n", get_clock());
+            //printf("waittime%f\n",waittime);
             mutilplexing->backend_poll (this, waittime);   // 里面有epoll_wait
             assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
-            printf("after_backend_poll%f\n", get_clock());
+            //printf("after_backend_poll%f\n", get_clock());
 
             pipe_write_wanted = 0; /* just an optimisation, no fence needed */
 
@@ -403,20 +404,19 @@ int ev_loop::run (int flags)
         /* queue pending timers and reschedule them */
         timer->timers_reify (); /* relative timers called last */
 #if EV_PERIODIC_ENABLE
-        periodics_reify (EV_A); /* absolute timers called first */
+        periodic->periodics_reify (); /* absolute timers called first */
 #endif
 
-#if 0
 
-//#if EV_IDLE_ENABLE
+#if EV_IDLE_ENABLE
         /* queue idle watchers unless other events are pending */
-        idle_reify (EV_A);
+        idle_reify ();
 #endif
-#if 0
-//#if EV_CHECK_ENABLE
+
+#if EV_CHECK_ENABLE
         /* queue check watchers, to be executed first */
-        if (checkcnt)
-            queue_events (EV_A_ (W *)checks, checkcnt, EV_CHECK);
+        if (!checks.empty())
+            queue_events (checks, EV_CHECK);
 #endif
 
         ev_invoke_pending();  // 最后的事件触发是在这里
@@ -457,4 +457,182 @@ void ev_loop::ev_invoke_pending ()
         }
     }
     while (pendingpri);
+}
+
+void timerfdcb (ev_loop* loop, ev_io *iow, int revents)
+{
+    struct itimerspec its = { 0 };
+
+    its.it_value.tv_sec = loop->ev_rt_now + (int)MAX_BLOCKTIME2;
+    timerfd_settime (loop->timerfd, TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET, &its, 0);
+
+    loop->ev_rt_now = ev_time ();
+    /* periodics_reschedule only needs ev_rt_now */
+    /* but maybe in the future we want the full treatment. */
+    /*
+    now_floor = EV_TS_CONST (0.);
+    time_update (EV_A_ EV_TSTAMP_HUGE);
+    */
+    #if EV_PERIODIC_ENABLE
+    loop->periodic->periodics_reschedule ();
+    #endif
+}
+
+void ev_loop::evtimerfd_init ()
+{
+        if (!timerfd_w->get_active())
+        {
+            timerfd = timerfd_create (CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+
+            if (timerfd >= 0)
+            {
+                fd_intern (timerfd); /* just to be sure */
+                timerfd_w->init( timerfdcb, timerfd, EV_READ);
+                timerfd_w->set_priority(EV_MINPRI);
+                timerfd_w->start(this);
+                activecnt--;
+
+                /* (re-) arm timer */
+                timerfdcb (this, 0, 0);
+            }
+        }
+}
+
+void ev_loop::idle_reify ()
+{
+        if (idleall)
+        {
+            int pri;
+
+            for (pri = NUMPRI; pri--; )
+            {
+                if(pendings[pri].size())
+                    break;
+                if(idles[pri].size())
+                {
+                    queue_events (idles [pri],  EV_IDLE);
+                    break;
+                }
+            }
+        }
+}
+
+void ev_loop::destroy() {
+
+    #if EV_CLEANUP_ENABLE
+        /* queue cleanup watchers (and execute them) */
+        /*
+        if (ecb_expect_false (cleanupcnt))
+        {
+            queue_events (EV_A_ (W *)cleanups, cleanupcnt, EV_CLEANUP);
+            EV_INVOKE_PENDING;
+        }
+        */
+    #endif
+
+    #if EV_CHILD_ENABLE
+        if (this==ev_default_loop_ptr && childev->get_active())
+        {
+            ++activecnt;
+            childev->stop();
+        }
+    #endif
+
+        if (pipe_w->get_active())
+        {
+            if (evpipe [0] >= 0) close (evpipe [0]);
+            if (evpipe [1] >= 0) close (evpipe [1]);
+        }
+
+    #if EV_USE_SIGNALFD
+        if (sigfd_w->get_active())
+            close (sigfd);
+    #endif
+
+    #if EV_USE_TIMERFD
+        if (timerfd_w->get_active())
+            close (timerfd);
+    #endif
+
+    #if EV_USE_INOTIFY
+        if (fs_fd >= 0)
+        close (fs_fd);
+    #endif
+
+        if (backend_fd >= 0)
+            close (backend_fd);
+
+
+    #if EV_USE_EPOLL
+        if (backend == EVBACKEND_EPOLL   ) mutilplexing->destroy();
+    #endif
+
+        delete(timer);
+    #if EV_PERIODIC_ENABLE
+        delete(periodic);
+    #endif
+
+        backend = 0;
+
+    #if EV_MULTIPLICITY
+        if (this==ev_default_loop_ptr)
+    #endif
+            ev_default_loop_ptr = 0;
+    #if EV_MULTIPLICITY
+        else
+            delete(this);
+    #endif
+
+}
+
+void ev_loop::loop_fork() {
+
+#if EV_USE_EPOLL
+    if (backend == EVBACKEND_EPOLL   ) mutilplexing->fork(this);
+#endif
+#if EV_USE_INOTIFY
+    infy_fork (EV_A);
+#endif
+
+    if (postfork != 2)
+    {
+#if EV_USE_SIGNALFD
+        /* surprisingly, nothing needs to be done for signalfd, accoridng to docs, it does the right thing on fork */
+#endif
+
+#if EV_USE_TIMERFD
+        if (timerfd_w->get_active())
+        {
+            activecnt++;
+            timerfd_w->stop();
+
+            close (timerfd);
+            timerfd = -2;
+
+            evtimerfd_init();
+            /* reschedule periodics, in case we missed something */
+            ev_feed_event (timerfd_w, EV_CUSTOM);
+        }
+#endif
+
+#if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
+        if (pipe_w->get_active())
+        {
+            /* pipe_write_wanted must be false now, so modifying fd vars should be safe */
+
+            activecnt++;
+            pipe_w->stop();
+
+
+            if (evpipe [0] >= 0)
+                close (evpipe [0]);
+
+            evpipe_init ();
+            /* iterate over everything, in case we missed something before */
+            ev_feed_event (pipe_w, EV_CUSTOM);
+        }
+#endif
+    }
+
+    postfork = 0;
 }
