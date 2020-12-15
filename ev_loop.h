@@ -8,7 +8,13 @@
 #include <memory>
 #include <csignal>
 #include "ev.h"
-#include "ev_timer.h"
+//#include "ev_timer.h"
+
+class ev_timer;
+class ev_periodic;
+template <typename Type>
+class Timer;
+class ev_loop;
 
 #define NUMPRI 5
 
@@ -90,6 +96,7 @@ public:
     void evtimerfd_init ();
     void idle_reify ();
     void loop_fork();
+    void evpipe_init();
     void ev_break (int how);
     double ev_rt_now;
     double now_floor; /* last time we refreshed rt_time */
@@ -128,7 +135,7 @@ public:
 // 将三个ev_io按照123顺序加入，最终结果为anfds->3->2->1
     //ANFD * anfds;
     FdWatcher*  fdwtcher;
-    Timer *timer;
+    Timer<ev_timer> *timer;
 
 
     int evpipe [2];
@@ -144,6 +151,9 @@ public:
 
 
     //ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
+#if EV_FORK_ENABLE
+    std::vector<ev_fork *> forks;
+#endif
 
 
 #if EV_IDLE_ENABLE
@@ -151,7 +161,7 @@ public:
 #endif
 
 #if EV_PERIODIC_ENABLE
-    Timer *periodic;
+    Timer<ev_periodic> *periodic;
 #endif
 
     int idleall; /* total number */

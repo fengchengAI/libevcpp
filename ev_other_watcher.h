@@ -22,4 +22,13 @@ class ec_child : public ev_watcher
     int rstatus; /* rw, holds the exit status, use the macros from sys/wait.h */
 
 };
+
+class ev_async : public ev_watcher
+{
+public:
+    sig_atomic_t get_sent();
+    void set_sent(sig_atomic_t sent_);
+private:
+    sig_atomic_t volatile sent; /* private */
+} ;
 #endif //LIBEVCPP_EV_OTHER_WATCHER_H

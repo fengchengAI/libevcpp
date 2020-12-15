@@ -7,6 +7,8 @@
 
 #include <queue>
 #include "watcher.h"
+#include "ev_loop.h"
+class ev_loop;
 
 class ev_timer : public ev_watcher{
 
@@ -39,7 +41,7 @@ public:
     void set_at(double );
     double get_at();
     void stop() ;
-    void ev_periodic::again();
+    void again();
     void call_back(ev_loop *loop, void *w, int) ;
     void set_t(tm* );
     tm* get_t();

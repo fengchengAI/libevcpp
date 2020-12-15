@@ -76,3 +76,19 @@ void ev_io::start (ev_loop *loop)
     events &= ~EV__IOFDSET;
 
 }
+
+int ev_io::get_fd() {
+    return fd;
+}
+
+void ev_io::set_fd(int fd_) {
+    fd = fd_;
+}
+
+void ev_io::set_event(int event_) {
+    events = event_;
+}
+
+int ev_io::get_event() {
+    return events;
+}

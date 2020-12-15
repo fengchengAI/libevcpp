@@ -303,4 +303,6 @@ void ev_epoll::fork (ev_loop * loop)
 }
 
 
+Multiplexing::Multiplexing() {
 
+}

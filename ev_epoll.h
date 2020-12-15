@@ -8,13 +8,13 @@
 
 class Multiplexing{
 public:
-    Multiplexing(){};
+    Multiplexing();
     int backend_fd;
     double backend_mintime; /* assumed typical timer resolution */
     virtual void backend_init(ev_loop *loop,int flag) = 0;
     virtual void backend_modify(ev_loop * loop, int fd, int oev, int nev) = 0;
     virtual void backend_poll(ev_loop * loop, double timeout) = 0;
-    virtual void fork(ev_loop * loop);
+    virtual void fork(ev_loop * loop) = 0;
 
     virtual void destroy() = 0;
 };
@@ -22,8 +22,7 @@ public:
 class ev_epoll : public Multiplexing{
 public:
     ev_epoll(){};
-    void epoll_destroy (ev_loop * loop);
-    void epoll_fork (ev_loop * loop);
+
     int epoll_epoll_create ();
     //void init(ev_loop *loop, int flags);
     struct epoll_event * epoll_events;
@@ -35,7 +34,7 @@ public:
     void backend_modify(ev_loop * loop, int fd, int oev, int nev) override;
     void backend_poll(ev_loop * loop, double timeout) override;
     void destroy() override;
-    void fork(ev_loop * loop);
+    void fork(ev_loop * loop) override;
 };
 
 

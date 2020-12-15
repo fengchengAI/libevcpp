@@ -3,6 +3,7 @@
 //
 #include <unistd.h>
 #include <sys/timerfd.h>
+#include <sys/eventfd.h>
 #include "ev_loop.h"
 #include "utils.h"
 #include <cstdlib>
@@ -17,6 +18,7 @@
 #include "ev_timer.h"
 #include "ev_io.h"
 #include "ev_signal.h"
+#include "ev_other_watcher.h"
 #define EVBREAK_RECURSE 0x80
 
 
@@ -275,15 +277,14 @@ int ev_loop::run (int flags)
                 curpid = getpid ();
                 postfork = 1;
             }
-#if 0
 
-//#if EV_FORK_ENABLE
+#if EV_FORK_ENABLE
         /* we might have forked, so queue fork handlers */
         if (postfork)
-            if (forkcnt)
+            if (!forks.empty())
             {
-                queue_events ( (W *)forks, forkcnt, EV_FORK);
-                EV_INVOKE_PENDING;
+                queue_events (forks, EV_FORK);
+                ev_invoke_pending();
             }
 #endif
 
@@ -302,7 +303,7 @@ int ev_loop::run (int flags)
         /* we might have forked, so reify kernel state if necessary */
 
         if (postfork)
-            loop_fork (EV_A);
+            loop_fork ();
 
         /* update fd-related kernel structures */
         fdwtcher->fd_reify();
@@ -635,4 +636,48 @@ void ev_loop::loop_fork() {
     }
 
     postfork = 0;
+}
+void ev_loop::evpipe_init()
+{
+    if (pipe_w->get_active())
+    {
+        int fds [2];
+
+    # if EV_USE_EVENTFD
+        fds [0] = -1;
+        fds [1] = eventfd (0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (fds [1] < 0 && errno == EINVAL)
+            fds [1] = eventfd (0, 0);
+
+        if (fds [1] < 0)
+    # endif
+        {
+            while (pipe (fds))
+                std::cerr<<"(libev) error creating signal/async pipe"<<std::endl;
+
+            fd_intern (fds [0]);
+        }
+
+        evpipe [0] = fds [0];
+
+        if (evpipe [1] < 0)
+            evpipe [1] = fds [1]; /* first call, set write fd */
+        else
+        {
+            /* on subsequent calls, do not change evpipe [1] */
+            /* so that evpipe_write can always rely on its value. */
+            /* this branch does not do anything sensible on windows, */
+            /* so must not be executed on windows */
+
+            dup2 (fds [1], evpipe [1]);
+            close (fds [1]);
+        }
+
+        fd_intern (evpipe [1]);
+        pipe_w->set_fd(evpipe [0] < 0 ? evpipe [1] : evpipe [0]);
+        pipe_w->set_event(EV_READ);
+        pipe_w->start(this);
+        activecnt--;
+        /* watcher should not keep loop alive */
+    }
 }

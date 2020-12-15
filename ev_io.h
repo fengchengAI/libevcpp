@@ -20,12 +20,10 @@ public:
 
     void start (ev_loop *loop);
     void stop();
-    int get_fd(){
-        return fd;
-    }
-    int get_event(){
-        return events;
-    }
+    int get_fd();
+    void set_fd(int fd_);
+    int get_event();
+    void set_event(int event_);
 private:
     std::function<void(ev_loop *, ev_io *, int)> cb;
     //void(*cb)(ev_loop *, ev_io *, int);

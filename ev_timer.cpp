@@ -18,7 +18,8 @@ double ev_timer::get_repeat(){
     return repeat;
 }
 
-template <typename Type> Timer<Type>::Timer(ev_loop * loop_): timer_queue( [](Type * a1, Type * a2) { return a1->get_at() > a2->get_at(); })
+template <typename Type>
+Timer<Type>::Timer(ev_loop * loop_): timer_queue([](Type* a1, Type* a2) { return a1->get_at() > a2->get_at(); })
 {
     loop = loop_;
 }

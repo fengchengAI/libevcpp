@@ -164,3 +164,36 @@ void ev_signal::ev_feed_signal_event (int signum)
         get_loop()->ev_feed_event(i,EV_SIGNAL);
 
 }
+
+void ev_signal::stop(){
+    clear_pending();
+
+    if (!get_active())
+        return;
+
+    signals[signum-1].head.remove(this);
+    ev_watcher::stop();
+
+    if (signals [signum - 1].head.empty())
+    {
+#if EV_MULTIPLICITY
+        signals [signum - 1].loop = nullptr; /* unattach from signal */
+#endif
+#if EV_USE_SIGNALFD
+        if (get_loop()->sigfd >= 0)
+        {
+            sigset_t ss;
+
+            sigemptyset (&ss);
+            sigaddset (&ss, signum);
+            sigdelset (&get_loop()->sigfd_set, signum);
+
+            signalfd (get_loop()->sigfd, &get_loop()->sigfd_set, 0);
+            sigprocmask (SIG_UNBLOCK, &ss, 0);
+        }
+        else
+#endif
+            signal (signum, SIG_DFL);
+    }
+
+}

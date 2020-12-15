@@ -28,3 +28,11 @@ void ec_child::init(std::function<void(ev_loop *, ec_child *, int)> cb_, int pid
     pid = pid_;
     flags = flag_;
 }
+
+sig_atomic_t ev_async::get_sent() {
+    return sent;
+}
+
+void ev_async::set_sent(sig_atomic_t sent_) {
+    sent = sent_;
+}
