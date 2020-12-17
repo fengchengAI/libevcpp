@@ -26,6 +26,9 @@ class ec_child : public ev_watcher
 class ev_async : public ev_watcher
 {
 public:
+    void start(ev_loop *loop);
+    void stop();
+
     sig_atomic_t get_sent();
     void set_sent(sig_atomic_t sent_);
 private:

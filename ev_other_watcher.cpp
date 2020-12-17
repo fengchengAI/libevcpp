@@ -36,3 +36,9 @@ sig_atomic_t ev_async::get_sent() {
 void ev_async::set_sent(sig_atomic_t sent_) {
     sent = sent_;
 }
+
+void ev_async::start(ev_loop *loop) {
+    if(get_active())
+        return;
+    sent = 0;
+}

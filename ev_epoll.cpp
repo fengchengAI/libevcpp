@@ -131,7 +131,7 @@ void ev_epoll::backend_modify (ev_loop *loop, int fd, int oev, int nev)
             return;
         }
 
-        if (!epoll_ctl (loop->mutilplexing->backend_fd, EPOLL_CTL_MOD, fd, &ev))
+        if (!epoll_ctl (backend_fd, EPOLL_CTL_MOD, fd, &ev))
             return;
     }
     else if (errno == EPERM)
@@ -215,7 +215,7 @@ void ev_epoll::backend_poll (ev_loop *loop, double timeout)
 
             /* pre-2.6.9 kernels require a non-null pointer with EPOLL_CTL_DEL, */
             /* which is fortunately easy to do for us. */
-            if (epoll_ctl (loop->backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
+            if (epoll_ctl (backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
             {
                 loop->postfork |= 2; /* an error occurred, recreate kernel state */
                 continue;

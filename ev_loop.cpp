@@ -10,7 +10,7 @@
 #include "anfd.h"
 #include "ev_signal.h"
 #include "watcher.h"
-
+#include "ev_stat.h"
 #include "anfd.h"
 #include "watcher.h"
 
@@ -63,24 +63,15 @@ ev_loop *ev_default_loop (unsigned int flags )
 void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
 {
     int i;
-
     if (revents & EV_READ)
     {
-        #if EV_USE_EVENTFD
-        if (loop->evpipe [0] < 0)
+        if (loop->event_fd > 0)
         {
             uint64_t counter;
-            read (loop->evpipe [1], &counter, sizeof (uint64_t));
-        }
-        else
-        #endif
-        {
-            char dummy[4];
-
-            read (loop->evpipe [0], &dummy, sizeof (dummy));
+            read (loop->event_fd, &counter, sizeof (uint64_t));
         }
     }
-
+    /*
     loop->pipe_write_skipped = 0;
 
     #if EV_SIGNAL_ENABLE
@@ -93,7 +84,7 @@ void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
                 ev_feed_signal_event (loop, i + 1);
     }
     #endif
-
+    */
     #if EV_ASYNC_ENABLE
     if (loop->async_pending)
     {
@@ -140,17 +131,18 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         io_blocktime       = 0.;
         timeout_blocktime  = 0.;
         backend            = 0;
-        backend_fd         = -1;
+        mutilplexing->backend_fd         = -1;
         sig_pending        = 0;
         #if EV_ASYNC_ENABLE
         async_pending      = 0;
         #endif
-        pipe_write_skipped = 0;
-        pipe_write_wanted  = 0;
-        evpipe [0]         = -1;
-        evpipe [1]         = -1;
+        //pipe_write_skipped = 0;
+        //pipe_write_wanted  = 0;
+        event_fd = -1;
+        //evpipe [0]         = -1;
+        //evpipe [1]         = -1;
         #if EV_USE_INOTIFY
-        fs_fd              = flags & EVFLAG_NOINOTIFY ? -1 : -2;
+        file_stat->fs_fd   = flags & EVFLAG_NOINOTIFY ? -1 : -2;
         #endif
         #if EV_USE_SIGNALFD
         sigfd              = flags & EVFLAG_SIGNALFD  ? -2 : -1;
@@ -166,7 +158,7 @@ void ev_loop::loop_init (unsigned int flags) noexcept
             backend = EVBACKEND_EPOLL;
         mutilplexing = selectMultiplexing(EVBACKEND_EPOLL);
         mutilplexing->backend_init(this,flags);
-
+        file_stat = new File_Stat(this);
         fdwtcher = new FdWatcher(this);
         timer = new Timer<ev_timer>(this);
         periodic = new Timer<ev_periodic>(this);
@@ -174,9 +166,9 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         pending_w->init(pendingcb);
 
         #if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
-        pipe_w = new ev_io();
-        pipe_w->ev_watcher::init(pipecb);
-        pipe_w->set_priority(EV_MAXPRI);
+        event_io = new ev_io();
+        event_io->ev_watcher::init(pipecb);
+        event_io->set_priority(EV_MAXPRI);
         #endif
     }
 }
@@ -245,10 +237,8 @@ void ev_loop::time_update (double max_block)
 
         /* no timer adjustment, as the monotonic clock doesn't jump */
         /* timers_reschedule (EV_A_ rtmn_diff - odiff) */
-//# if EV_PERIODIC_ENABLE
-# if 0
-
-    periodics_reschedule (EV_A);
+# if EV_PERIODIC_ENABLE
+    periodic->periodics_reschedule ();
 # endif
 
 }
@@ -320,9 +310,9 @@ int ev_loop::run (int flags)
             time_update (EV_TSTAMP_HUGE);
 
             /* from now on, we want a pipe-wake-up */
-            pipe_write_wanted = 1;
+            //pipe_write_wanted = 1;
 
-            if (!(flags & EVRUN_NOWAIT || idleall || !activecnt || pipe_write_skipped))
+            if (!(flags & EVRUN_NOWAIT || idleall || !activecnt ))
             {// 这个函数主要设置waittime等待时间
 
                 waittime = MAX_BLOCKTIME;
@@ -359,18 +349,18 @@ int ev_loop::run (int flags)
                 现在还有另外两种特殊情况，要么我们的定时器已经过期，所以我们就不应该睡觉，
                 要么定时器很快到期，在这种情况下，我们需要等待一些事件循环后端的最短时间 。
                 */
-                if (waittime < backend_mintime)
+                if (waittime < mutilplexing->backend_mintime)
                     waittime = waittime <= 0.
                                ? 0.
-                               : backend_mintime;
+                               : mutilplexing->backend_mintime;
 
                 /* extra check because io_blocktime is commonly 0 */
                 if (io_blocktime)
                 {
                     sleeptime = io_blocktime - (mn_now - prev_mn_now);
 
-                    if (sleeptime > waittime - backend_mintime)
-                        sleeptime = waittime - backend_mintime;
+                    if (sleeptime > waittime - mutilplexing->backend_mintime)
+                        sleeptime = waittime - mutilplexing->backend_mintime;
 
                     if (sleeptime > 0.)
                     {
@@ -390,14 +380,14 @@ int ev_loop::run (int flags)
             assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
             //printf("after_backend_poll%f\n", get_clock());
 
-            pipe_write_wanted = 0; /* just an optimisation, no fence needed */
-
+            //pipe_write_wanted = 0; /* just an optimisation, no fence needed */
+            /*
             if (pipe_write_skipped)
             {
-                assert (("libev: pipe_w not active, but pipe not written", pipe_w->get_active()));
-                ev_feed_event (pipe_w, EV_CUSTOM);
+                assert (("libev: pipe_w not active, but pipe not written", event_io->get_active()));
+                ev_feed_event (event_io, EV_CUSTOM);
             }
-
+            */
             /* update ev_rt_now, do magic */
             time_update (waittime + sleeptime);
         }
@@ -539,10 +529,9 @@ void ev_loop::destroy() {
         }
     #endif
 
-        if (pipe_w->get_active())
+        if (event_io->get_active())
         {
-            if (evpipe [0] >= 0) close (evpipe [0]);
-            if (evpipe [1] >= 0) close (evpipe [1]);
+            if (event_fd >= 0) close (event_fd);
         }
 
     #if EV_USE_SIGNALFD
@@ -556,12 +545,12 @@ void ev_loop::destroy() {
     #endif
 
     #if EV_USE_INOTIFY
-        if (fs_fd >= 0)
-        close (fs_fd);
+        if (file_stat->fs_fd >= 0)
+        close (file_stat->fs_fd);
     #endif
 
-        if (backend_fd >= 0)
-            close (backend_fd);
+        if (mutilplexing->backend_fd >= 0)
+            close (mutilplexing->backend_fd);
 
 
     #if EV_USE_EPOLL
@@ -592,7 +581,7 @@ void ev_loop::loop_fork() {
     if (backend == EVBACKEND_EPOLL   ) mutilplexing->fork(this);
 #endif
 #if EV_USE_INOTIFY
-    infy_fork (EV_A);
+    //infy_fork (EV_A);
 #endif
 
     if (postfork != 2)
@@ -617,67 +606,42 @@ void ev_loop::loop_fork() {
 #endif
 
 #if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
-        if (pipe_w->get_active())
+        if (event_io->get_active())
         {
             /* pipe_write_wanted must be false now, so modifying fd vars should be safe */
 
             activecnt++;
-            pipe_w->stop();
+            event_io->stop();
 
 
-            if (evpipe [0] >= 0)
-                close (evpipe [0]);
-
-            evpipe_init ();
+            event_init();
             /* iterate over everything, in case we missed something before */
-            ev_feed_event (pipe_w, EV_CUSTOM);
+            ev_feed_event (event_io, EV_CUSTOM);
         }
 #endif
     }
 
     postfork = 0;
 }
-void ev_loop::evpipe_init()
-{
-    if (pipe_w->get_active())
-    {
-        int fds [2];
 
-    # if EV_USE_EVENTFD
-        fds [0] = -1;
-        fds [1] = eventfd (0, EFD_NONBLOCK | EFD_CLOEXEC);
-        if (fds [1] < 0 && errno == EINVAL)
-            fds [1] = eventfd (0, 0);
+void ev_loop::event_init() {
+    if(!event_io->get_active()){
 
-        if (fds [1] < 0)
-    # endif
-        {
-            while (pipe (fds))
-                std::cerr<<"(libev) error creating signal/async pipe"<<std::endl;
-
-            fd_intern (fds [0]);
+        int temp;
+        temp = eventfd (0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (temp < 0 && errno == EINVAL)
+            temp = eventfd (0, 0);
+        if(event_fd < 0)
+            event_fd = temp;
+        else{
+            dup2 (temp, event_fd);
+            close (temp);
         }
 
-        evpipe [0] = fds [0];
-
-        if (evpipe [1] < 0)
-            evpipe [1] = fds [1]; /* first call, set write fd */
-        else
-        {
-            /* on subsequent calls, do not change evpipe [1] */
-            /* so that evpipe_write can always rely on its value. */
-            /* this branch does not do anything sensible on windows, */
-            /* so must not be executed on windows */
-
-            dup2 (fds [1], evpipe [1]);
-            close (fds [1]);
-        }
-
-        fd_intern (evpipe [1]);
-        pipe_w->set_fd(evpipe [0] < 0 ? evpipe [1] : evpipe [0]);
-        pipe_w->set_event(EV_READ);
-        pipe_w->start(this);
+        fd_intern(event_fd);
+        event_io->set_fd(event_fd);
+        event_io->set_event(EV_READ);
+        event_io->start(this);
         activecnt--;
-        /* watcher should not keep loop alive */
     }
 }

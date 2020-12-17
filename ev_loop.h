@@ -11,6 +11,7 @@
 //#include "ev_timer.h"
 
 class ev_timer;
+class File_Stat;
 class ev_periodic;
 template <typename Type>
 class Timer;
@@ -89,14 +90,13 @@ public:
     void ev_invoke_pending();
     void queue_events ( std::vector<ev_watcher *>events, int type);
     void destroy();
-
+    void event_init();
     void loop_init (unsigned int flags ) noexcept;
     void ev_feed_event (ev_watcher *w, int revents) noexcept;
     void time_update (double max_block);
     void evtimerfd_init ();
     void idle_reify ();
     void loop_fork();
-    void evpipe_init();
     void ev_break (int how);
     double ev_rt_now;
     double now_floor; /* last time we refreshed rt_time */
@@ -122,8 +122,8 @@ public:
     int activecnt; /* total number of active events ("refcount"; */ //loop挂载的事件数，当调用ev_TYPE_start中后再会在子函数内加一
     sig_atomic_t loop_done; /* signal by ev_break */
 
-    int backend_fd;  // epoll_creat创建的结果
-    double backend_mintime; /* assumed typical timer resolution */
+    //int backend_fd;  // epoll_creat创建的结果
+    //double backend_mintime; /* assumed typical timer resolution */
 
 
     //void (*backend_modify)(ev_loop * loop, int fd, int oev ,int nev);
@@ -137,11 +137,11 @@ public:
     FdWatcher*  fdwtcher;
     Timer<ev_timer> *timer;
 
-
-    int evpipe [2];
-    ev_io *pipe_w;
-    sig_atomic_t pipe_write_wanted;
-    sig_atomic_t pipe_write_skipped;
+    int event_fd;
+    //int evpipe [2];
+    ev_io *event_io;
+    //sig_atomic_t pipe_write_wanted;
+    //sig_atomic_t pipe_write_skipped;
 
     pid_t curpid;
 
@@ -154,7 +154,6 @@ public:
 #if EV_FORK_ENABLE
     std::vector<ev_fork *> forks;
 #endif
-
 
 #if EV_IDLE_ENABLE
     std::array<std::vector<ev_idle *>,NUMPRI> idles;
@@ -170,18 +169,15 @@ public:
 
 #if EV_ASYNC_ENABLE 
     sig_atomic_t async_pending;
-    std::vector<ev_async*> asyncs;
-
+    std::vector<ev_async *> asyncs;
 #endif
 
-#if EV_USE_INOTIFY 
-    int fs_fd;
-    ev_io* fs_w;
-    char fs_2625; /* whether we are running in linux 2.6.25 or newer */
-    ANFS fs_hash [EV_INOTIFY_HASHSIZE];
+#if EV_USE_INOTIFY
+    File_Stat* file_stat;
 #endif
 
     sig_atomic_t sig_pending;
+
 #if EV_USE_SIGNALFD 
     int sigfd;
     ev_io* sigfd_w;
@@ -198,11 +194,7 @@ public:
 #if EV_FEATURE_API 
     unsigned int loop_count; /* total number of loop iterations/blocks */
     unsigned int loop_depth; /* #ev_run enters - #ev_run leaves */
-
-/* C++ doesn't support the ev_loop_callback typedef here. stinks. */
-
- std::function<void()> invoke_cb;
-
+    std::function<void()> invoke_cb;
 #endif
 
 };

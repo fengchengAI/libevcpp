@@ -196,8 +196,7 @@
 
 # if HAVE_INOTIFY_INIT && HAVE_SYS_INOTIFY_H
 #  ifndef EV_USE_INOTIFY
-//#   define EV_USE_INOTIFY EV_FEATURE_OS
-#   define EV_USE_INOTIFY 0
+#   define EV_USE_INOTIFY EV_FEATURE_OS
 
 #  endif
 # else
@@ -267,6 +266,11 @@ enum {
     EV_CUSTOM   =      0x01000000, /* for use by user code */
     EV_ERROR    = (int)0x80000000  /* sent when an error occurs */
 };
+
+#ifndef EV_INOTIFY_HASHSIZE
+# define EV_INOTIFY_HASHSIZE EV_FEATURE_DATA ? 16 : 1
+#endif
+
 #endif //LIBEVCPP_EV_H
 
 
