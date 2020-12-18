@@ -132,7 +132,7 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         io_blocktime       = 0.;
         timeout_blocktime  = 0.;
         backend            = 0;
-        sig_pending        = 0;
+        //sig_pending        = 0;
         #if EV_ASYNC_ENABLE
         async_pending      = 0;
         #endif
@@ -146,7 +146,7 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         file_stat->fs_fd   = flags & EVFLAG_NOINOTIFY ? -1 : -2;
         #endif
         #if EV_USE_SIGNALFD
-        sigfd              = flags & EVFLAG_SIGNALFD  ? -2 : -1;
+        sigs = new Signal(this);
         #endif
         #if EV_USE_TIMERFD
         timerfd            = -1;
@@ -313,7 +313,7 @@ int ev_loop::run (int flags)
             double prev_mn_now = mn_now;
 
             /* 更新时间以取消回调处理开销 */
-            time_update (EV_TSTAMP_HUGE);
+            time_update(EV_TSTAMP_HUGE);
 
             /* from now on, we want a pipe-wake-up */
             //pipe_write_wanted = 1;
@@ -399,9 +399,9 @@ int ev_loop::run (int flags)
         }
 
         /* queue pending timers and reschedule them */
-        timer->timers_reify (); /* relative timers called last */
+        timer->timers_reify(); /* relative timers called last */
 #if EV_PERIODIC_ENABLE
-        periodic->periodics_reify (); /* absolute timers called first */
+        periodic->periodics_reify(); /* absolute timers called first */
 #endif
 
 
@@ -456,14 +456,14 @@ void ev_loop::ev_invoke_pending ()
     while (pendingpri);
 }
 
-void timerfdcb (ev_loop* loop, ev_io *iow, int revents)
+void timerfdcb(ev_loop* loop, ev_io *iow, int revents)
 {
     struct itimerspec its = { 0 };
 
     its.it_value.tv_sec = loop->ev_rt_now + (int)MAX_BLOCKTIME2;
-    timerfd_settime (loop->timerfd, TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET, &its, 0);
+    timerfd_settime(loop->timerfd, TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET, &its, 0);
 
-    loop->ev_rt_now = ev_time ();
+    loop->ev_rt_now = ev_time();
     /* periodics_reschedule only needs ev_rt_now */
     /* but maybe in the future we want the full treatment. */
     /*
@@ -471,47 +471,47 @@ void timerfdcb (ev_loop* loop, ev_io *iow, int revents)
     time_update (EV_A_ EV_TSTAMP_HUGE);
     */
     #if EV_PERIODIC_ENABLE
-    loop->periodic->periodics_reschedule ();
+    loop->periodic->periodics_reschedule();
     #endif
 }
 
-void ev_loop::evtimerfd_init ()
+void ev_loop::evtimerfd_init()
 {
-        if (!timerfd_w->get_active())
+    if (!timerfd_w->get_active())
+    {
+        timerfd = timerfd_create (CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+
+        if (timerfd >= 0)
         {
-            timerfd = timerfd_create (CLOCK_REALTIME, TFD_NONBLOCK | TFD_CLOEXEC);
+            fd_intern (timerfd); /* just to be sure */
+            timerfd_w->init(timerfdcb, timerfd, EV_READ);
+            timerfd_w->set_priority(EV_MINPRI);
+            timerfd_w->start(this);
+            activecnt--;
 
-            if (timerfd >= 0)
-            {
-                fd_intern (timerfd); /* just to be sure */
-                timerfd_w->init( timerfdcb, timerfd, EV_READ);
-                timerfd_w->set_priority(EV_MINPRI);
-                timerfd_w->start(this);
-                activecnt--;
-
-                /* (re-) arm timer */
-                timerfdcb (this, 0, 0);
-            }
+            /* (re-) arm timer */
+            timerfdcb(this, 0, 0);
         }
+    }
 }
 
 void ev_loop::idle_reify ()
 {
-        if (idleall)
-        {
-            int pri;
+    if (idleall)
+    {
+        int pri;
 
-            for (pri = NUMPRI; pri--; )
+        for (pri = NUMPRI; pri--; )
+        {
+            if(pendings[pri].size())
+                break;
+            if(idles[pri].size())
             {
-                if(pendings[pri].size())
-                    break;
-                if(idles[pri].size())
-                {
-                    queue_events (idles [pri],  EV_IDLE);
-                    break;
-                }
+                queue_events (idles [pri],  EV_IDLE);
+                break;
             }
         }
+    }
 }
 
 void ev_loop::destroy() {
@@ -541,8 +541,9 @@ void ev_loop::destroy() {
         }
 
     #if EV_USE_SIGNALFD
-        if (sigfd_w->get_active())
-            close (sigfd);
+        delete(sigs);
+        sigs = nullptr;
+
     #endif
 
     #if EV_USE_TIMERFD

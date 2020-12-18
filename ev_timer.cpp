@@ -87,7 +87,7 @@ void ev_periodic::start(ev_loop *loop) noexcept {
 
 #if EV_USE_TIMERFD
     if (loop->timerfd == -1)
-        get_loop()->evtimerfd_init ();
+        get_loop()->evtimerfd_init();
 #endif
 
     at = tm_to_time(t);

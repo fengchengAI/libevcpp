@@ -15,9 +15,11 @@ std::forward_list<ev_child *> childs [EV_PID_HASHSIZE];
 void ev_signal::set_signum(int sig_){
     signum = sig_;
 }
+
 int ev_signal::get_signum(){
     return signum;
 }
+
 void ev_signal::init(std::function<void(ev_loop *loop, ev_signal *w, int)> cb_, int sig_)
 {
     cb = cb_;
@@ -26,8 +28,6 @@ void ev_signal::init(std::function<void(ev_loop *loop, ev_signal *w, int)> cb_, 
 
 void ev_feed_signal_event (ev_loop* loop, int signum)
 {
-    ev_watcher_list w;
-
     if (signum <= 0 || signum >= NSIG)
         return;
 
@@ -37,12 +37,12 @@ void ev_feed_signal_event (ev_loop* loop, int signum)
     /* it is permissible to try to feed a signal to the wrong loop */
     /* or, likely more useful, feeding a signal nobody is waiting for */
 
-    if (signals [signum].loop != loop)
+    if (signals[signum].loop != loop)
         return;
     #endif
 
-    signals [signum].pending = 0;
-    for (auto &i : signals [signum].head)
+    signals[signum].pending = 0;
+    for (auto i : signals [signum].head)
         loop->ev_feed_event(i,EV_SIGNAL);
 }
 
@@ -55,7 +55,7 @@ void ev_signal::child_reap ( int chain, int pid, int status)
             && (!traced || (w->flags & 1)))
         {
             w->set_priority(EV_MAXPRI);
-            w->rpid    = pid;
+            w->rpid = pid;
             w->rstatus = status;
             get_loop()->ev_feed_event(w,EV_CHILD);
         }
@@ -68,7 +68,7 @@ void sigfdcb (ev_loop*loop, ev_io *iow, int revents)
 
     for (;;)
     {
-        ssize_t res = read (loop->sigfd, si, sizeof (si));
+        ssize_t res = read(iow->get_fd(), si, sizeof (si));
 
         /* not ISO-C, as res might be -1, but works with SuS */
         for (sip = si; (char *)sip < (char *)si + res; ++sip)
@@ -79,9 +79,12 @@ void sigfdcb (ev_loop*loop, ev_io *iow, int revents)
     }
 }
 void ev_signal::start(ev_loop *loop){
+
     set_loop(loop);
+    sigs = get_loop()->sigs;
     if (get_active())
         return;
+
 
     assert (("libev: ev_signal_start called with illegal signal number", signum > 0 && signum < NSIG));
 
@@ -91,58 +94,58 @@ void ev_signal::start(ev_loop *loop){
     signals[get_signum() - 1].loop = loop;
 
     // TODO 这里使用的是signalfd
-    if (loop->sigfd == -2)
+    /*
+    if (sigs->sigfd == -2)
     {
-      loop->sigfd = signalfd (-1, &loop->sigfd_set, SFD_NONBLOCK | SFD_CLOEXEC);
+      loop->sigfd = signalfd(-1, &loop->sigfd_set, SFD_NONBLOCK | SFD_CLOEXEC);
       if (loop->sigfd < 0 && errno == EINVAL)
-        loop->sigfd = signalfd (-1, &loop->sigfd_set, 0); /* retry without flags */
+        loop->sigfd = signalfd(-1, &loop->sigfd_set, 0); /* retry without flags
 
       if (loop->sigfd >= 0)
         {
-          fd_intern (loop->sigfd); /* doing it twice will not hurt */
+          fd_intern(loop->sigfd);
 
-          sigemptyset (&loop->sigfd_set);
+          sigemptyset(&loop->sigfd_set);
           loop->sigfd_w = new ev_io();
           loop->sigfd_w->init(sigfdcb, loop->sigfd, EV_READ);
           loop->sigfd_w->set_priority(EV_MAXPRI);
           loop->sigfd_w->start(loop);
           loop->activecnt--;
-          //ev_unref (EV_A); /* signalfd watcher should not keep loop alive */
         }
     }
-
-    if (loop->sigfd >= 0)
+    */
+    if (sigs->get_fd() >= 0)
       {
         /* TODO: check .head */
-        sigaddset (&loop->sigfd_set, signum);
-        sigprocmask (SIG_BLOCK, &loop->sigfd_set, 0);
+        sigs->sigaddset(signum);
+        sigprocmask(SIG_BLOCK, sigs->fd_set_ptr(), 0);
 
-        signalfd (loop->sigfd, &loop->sigfd_set, 0);
+        signalfd(sigs->get_fd(), sigs->fd_set_ptr(), 0);
       }
 
-      ev_start (1);
-      signals [signum - 1].head.push_front(this);
+      ev_start(1);
+      signals[signum - 1].head.push_front(this);
 }
 
-void childcb (ev_loop* loop, ev_signal * w, int revents)
+void childcb(ev_loop* loop, ev_signal * w, int revents)
 {
     int pid, status;
 
     /* some systems define WCONTINUED but then fail to support it (linux 2.4) */
-    if (0 >= (pid = waitpid (-1, &status, WNOHANG | WUNTRACED | WCONTINUED)))
+    if (0 >= (pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)))
         if (!WCONTINUED
         || errno != EINVAL
-        || 0 >= (pid = waitpid (-1, &status, WNOHANG | WUNTRACED)))
+        || 0 >= (pid = waitpid(-1, &status, WNOHANG | WUNTRACED)))
             return;
 
     /* make sure we are called again until all children have been reaped */
     /* we need to do it this way so that the callback gets called before we continue */
     loop->ev_feed_event(w,EV_SIGNAL);
-    w->child_reap (pid, pid, status);
+    w->child_reap(pid, pid, status);
     if ((EV_PID_HASHSIZE) > 1)
-        w->child_reap (0, pid, status); /* this might trigger a watcher twice, but feed_event catches that */
+        w->child_reap(0, pid, status); /* this might trigger a watcher twice, but feed_event catches that */
 }
-
+/*
 void ev_signal::ev_feed_signal_event (int signum)
 {
 
@@ -152,19 +155,19 @@ void ev_signal::ev_feed_signal_event (int signum)
     --signum;
 
     #if EV_MULTIPLICITY
-    /* it is permissible to try to feed a signal to the wrong loop */
-    /* or, likely more useful, feeding a signal nobody is waiting for */
+    // it is permissible to try to feed a signal to the wrong loop
+    // or, likely more useful, feeding a signal nobody is waiting for
 
-    if (signals [signum].loop !=  get_loop())
+    if (signals[signum].loop !=  get_loop())
         return;
     #endif
 
-    signals [signum].pending = 0;
-    for (auto &i: signals[signum].head)
+    signals[signum].pending = 0;
+    for (auto i: signals[signum].head)
         get_loop()->ev_feed_event(i,EV_SIGNAL);
 
 }
-
+*/
 void ev_signal::stop(){
     clear_pending();
 
@@ -174,26 +177,69 @@ void ev_signal::stop(){
     signals[signum-1].head.remove(this);
     ev_watcher::stop();
 
-    if (signals [signum - 1].head.empty())
+    if (signals[signum - 1].head.empty())
     {
+
 #if EV_MULTIPLICITY
-        signals [signum - 1].loop = nullptr; /* unattach from signal */
+        signals[signum - 1].loop = nullptr; /* unattach from signal */
 #endif
+
 #if EV_USE_SIGNALFD
-        if (get_loop()->sigfd >= 0)
+        if (sigs->get_fd() >= 0)
         {
             sigset_t ss;
 
-            sigemptyset (&ss);
-            sigaddset (&ss, signum);
-            sigdelset (&get_loop()->sigfd_set, signum);
+            sigemptyset(&ss);
+            sigaddset(&ss, signum);
+            sigdelset(sigs->fd_set_ptr(), signum);
 
-            signalfd (get_loop()->sigfd, &get_loop()->sigfd_set, 0);
-            sigprocmask (SIG_UNBLOCK, &ss, 0);
+            signalfd(sigs->get_fd(), sigs->fd_set_ptr(), 0);
+            sigprocmask(SIG_UNBLOCK, &ss, 0);
         }
         else
 #endif
-            signal (signum, SIG_DFL);
+            signal(signum, SIG_DFL);
     }
 
+}
+
+void ev_signal::call_back(ev_loop *loop, void *w, int sig_ ) {
+    cb(loop, static_cast<ev_signal*>(w), sig_);
+}
+
+Signal::Signal(ev_loop *loop_) :sigfd(0), sigfd_w(nullptr){
+    loop = loop_;
+
+    sigfd = signalfd(-1, &sigfd_set, SFD_NONBLOCK | SFD_CLOEXEC);
+    if (sigfd < 0 && errno == EINVAL)
+        sigfd = signalfd(-1, &sigfd_set, 0); /* retry without flags */
+
+    if (sigfd >= 0)
+    {
+        fd_intern(sigfd); /* doing it twice will not hurt */
+
+        sigemptyset(&sigfd_set);
+        sigfd_w = new ev_io();
+        sigfd_w->init(sigfdcb, sigfd, EV_READ);
+        sigfd_w->set_priority(EV_MAXPRI);
+        sigfd_w->start(loop);
+        loop_->activecnt--;
+    }
+}
+
+int Signal::get_fd() {
+    return sigfd;
+}
+
+void Signal::sigaddset(int signum) {
+    ::sigaddset(&sigfd_set, signum);
+}
+
+sigset_t *Signal::fd_set_ptr() {
+    return &sigfd_set;
+}
+
+Signal::~Signal() {
+    delete(sigfd_w);
+    sigfd_w = nullptr;
 }

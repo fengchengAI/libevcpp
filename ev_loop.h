@@ -20,7 +20,7 @@ class ev_loop;
 #define NUMPRI 5
 
 static ev_loop *ev_default_loop_ptr = nullptr;
-
+class Signal;
 class ev_watcher;
 class FdWatcher;
 class Multiplexing;
@@ -86,7 +86,7 @@ static ev_signal *childev;
 class ev_loop {
 public:
     ev_loop();
-    int run (int flags);
+    int run(int flags);
     void ev_invoke_pending();
     void queue_events ( std::vector<ev_watcher *>events, int type);
     void destroy();
@@ -111,7 +111,7 @@ public:
 
     
     // ANPENDING *pendings [NUMPRI];  // 二维数组，不同的等级监视的事件类型。指向NUMPRI大小的数组，每个数组指向pendings类型地址
-    std::array<std::vector<ANPENDING>,NUMPRI> pendings;
+    std::array<std::vector<ANPENDING>, NUMPRI> pendings;
     //int pendingmax [NUMPRI];
     //std::array<int, NUMPRI> pendingcnt; //记录的是每个等级已经记录的监视器个数。也是用这个对 w_->pending进行排序，即使用++pendingcnt [NUMPRI]对w_->pending赋值
     int pendingpri; /* highest priority currently pending */
@@ -138,7 +138,7 @@ public:
 // 比如有两个ev_io事件用到stdin标准输入文件描述符，则对于第一个ev_io将anfds的头指向这个，此时记为为anfds->1
 // 将三个ev_io按照123顺序加入，最终结果为anfds->3->2->1
     //ANFD * anfds;
-    FdWatcher*  fdwtcher;
+    FdWatcher* fdwtcher;
     Timer<ev_timer> *timer;
 
     int event_fd;
@@ -151,7 +151,7 @@ public:
 
     char postfork;  /* true if we need to recreate kernel state after fork */
 
-    Multiplexing * mutilplexing;
+    Multiplexing *mutilplexing;
 
 
     //ev_watcher_time ** timers;  // 所有的定时器，其按照ev_timer_start的顺序，给EV_WATCHER的active顺序赋值，用这个active也可以指向其挂在的ev_time事件
@@ -180,12 +180,10 @@ public:
     File_Stat* file_stat;
 #endif
 
-    sig_atomic_t sig_pending;
+    //sig_atomic_t sig_pending;
 
-#if EV_USE_SIGNALFD 
-    int sigfd;
-    ev_io* sigfd_w;
-    sigset_t sigfd_set;
+#if EV_USE_SIGNALFD
+    Signal *sigs;
 #endif
 
 #if EV_USE_TIMERFD 

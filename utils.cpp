@@ -10,7 +10,6 @@
 #include <iostream>
 int enable_secure (void)
 {
-
     return getuid () != geteuid ()
            || getgid () != getegid ();
 }

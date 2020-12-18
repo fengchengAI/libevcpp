@@ -7,6 +7,7 @@
 static std::array<std::forward_list<ec_child*>, EV_PID_HASHSIZE>childs ;
 
 void ec_child::start(ev_loop *loop) {
+
 #if EV_MULTIPLICITY
     assert (("libev: child watchers are only supported in the default loop", loop == ev_default_loop_ptr));
 #endif
@@ -35,7 +36,6 @@ sig_atomic_t ev_async::get_sent() {
 
 void ev_async::set_sent(sig_atomic_t sent_) {
     sent = sent_;
-
 }
 
 void ev_async::start(ev_loop *loop) {
