@@ -25,7 +25,7 @@ void ev_io::init(std::function<void(ev_loop *loop, ev_io *w, int)> cb_, int fd_,
 }
 
 void ev_io::call_back(ev_loop *loop, void *w, int event){
-    cb(loop, static_cast< ev_io *>(w), event);
+    cb(loop, static_cast<ev_io *>(w), event);
 }
 
 ev_io::ev_io(){}
@@ -89,6 +89,6 @@ void ev_io::set_event(int event_) {
     events = event_;
 }
 
-int ev_io::get_event() {
+int ev_io:: get_event() {
     return events;
 }

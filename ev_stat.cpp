@@ -35,7 +35,7 @@ void stat_timer_cb (ev_loop* loop, ev_stat *w, int revents)
     /* in case we test more often than invoke the callback, */
     /* to ensure that prev is always different to attr */
         w->prev = prev;
-
+        /*
         #if EV_USE_INOTIFY
         if (w->get_fd() >= 0)
         {
@@ -44,8 +44,9 @@ void stat_timer_cb (ev_loop* loop, ev_stat *w, int revents)
             w->stat();
         }
         #endif
+        */
 
-        loop->ev_feed_event ( w, EV_STAT);
+        loop->ev_feed_event( w, EV_STAT);
     }
 }
 
@@ -56,18 +57,21 @@ void ev_stat::stat()
     else if (!attr.st_nlink)
         attr.st_nlink = 1;
 }
+void ev_stat::call_back(ev_loop *loop, void *w, int event){
+    cb(loop, static_cast<ev_stat *>(w), event);
+}
 
 void ev_stat::start(ev_loop *loop)
 {
     set_loop(loop);
+    file_stat = get_loop()->file_stat;
     if (get_active())
         return;
     ::ev_stat::stat();
 
     assert(("ev_stat depend on linux INOTIFY ",EV_USE_INOTIFY));
 
-    get_loop()->file_stat->infy_init ();
-
+    fs_fd = file_stat->infy_init ();
     if (fs_fd >= 0)
         infy_add();
 
@@ -75,12 +79,15 @@ void ev_stat::start(ev_loop *loop)
 }
 
 ev_stat::ev_stat(std::function<void(ev_loop*, ev_stat*,int)> cb_, std::string str):
-        ev_watcher(),cb(cb_),path(str){
+        ev_watcher(),cb(cb_),path(str)
+{
+
 }
 
 
 File_Stat::File_Stat(ev_loop *loop_) {
     loop = loop_;
+    fs_w  = new ev_io();
 }
 
 int File_Stat::infy_newfd ()
@@ -97,34 +104,30 @@ void infy_cb (ev_loop *loop, ev_io *w, int revents)
 {
     char buf [EV_INOTIFY_BUFSIZE];
     int ofs;
-    int len = read (loop->file_stat->get_fd(), buf, sizeof (buf));
+    int len = read (w->get_fd(), buf, sizeof(buf));
 
     for (ofs = 0; ofs < len; )
     {
         struct inotify_event *ev = (struct inotify_event *)(buf + ofs);
-        loop->file_stat->infy_wd (ev->wd, ev);
-        ofs += sizeof (struct inotify_event) + ev->len;
+        loop->file_stat->infy_wd(ev->wd, ev);
+        ofs += sizeof(struct inotify_event) + ev->len;
     }
 }
 
-void File_Stat::infy_init ()
+int File_Stat::infy_init()
 {
-    if (fs_fd != -2)
-        return;
 
-    fs_fd = -1;
-
-    fs_fd = infy_newfd ();
+    fs_fd = infy_newfd();
 
     if (fs_fd >= 0)
     {
         fd_intern (fs_fd);
-        get_ev_io()->init(infy_cb, fs_fd, EV_READ);
-        //ev_io_init (&fs_w, infy_cb, fs_fd, EV_READ);
+        fs_w->init(infy_cb, fs_fd, EV_READ);
         fs_w->set_priority(EV_MAXPRI);
         fs_w->start(loop);
         --loop->activecnt;
     }
+    return fs_fd;
 }
 
 int File_Stat::get_fd() {
@@ -137,20 +140,21 @@ ev_io * File_Stat::get_ev_io() {
 
 void File_Stat::infy_wd(int fd, struct inotify_event *ev)
 {
-    std::vector<ev_stat*> temp;
-    for (auto w : fs_hash[fd & (EV_INOTIFY_HASHSIZE - 1)])
+
+    //std::vector<ev_stat*> temp;
+    for (auto w : fs_hash.at(fd))
     {
         if(w->get_wd() ==fd || fd ==-1 )
         {
             if (ev->mask & (IN_IGNORED | IN_UNMOUNT | IN_DELETE_SELF))
             {
-                temp.push_back(w);
-                w->infy_add();
+                //temp.push_back(w);
+                w->infy_add();  // 这里一般因为文件已经删除，于是重新添加，此时的wd不等于这个fd，所以不担心在范围循环中对容量做修改
             }
-
             stat_timer_cb (loop, w, 0);
         }
     }
+
 }
 
 
@@ -192,7 +196,7 @@ void ev_stat::infy_add ()
     }
 
     if (wd >= 0)
-        get_loop()->file_stat->fs_hash[wd & ((EV_INOTIFY_HASHSIZE) - 1)].push_front(this);
+        file_stat->fs_hash[wd].push_front(this);
 
 }
 
@@ -217,7 +221,7 @@ void ev_stat::infy_del() {
 
     this->wd = -2;
     slot = wd & ((EV_INOTIFY_HASHSIZE) - 1);
-    get_loop()->file_stat->fs_hash[slot].remove(this);
+    get_loop()->file_stat->fs_hash.at(slot).remove(this);
 
     /* remove this watcher, if others are watching it, they will rearm */
     inotify_rm_watch (fs_fd, wd);

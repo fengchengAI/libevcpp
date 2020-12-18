@@ -18,75 +18,6 @@ double ev_timer::get_repeat(){
     return repeat;
 }
 
-template <typename Type>
-Timer<Type>::Timer(ev_loop * loop_): timer_queue([](Type* a1, Type* a2) { return a1->get_at() > a2->get_at(); })
-{
-    loop = loop_;
-}
-template <typename Type>
-void Timer<Type>::push(Type * w){
-    timer_queue.push(w);
-}
-
-template <typename Type>
-void Timer<Type>::pop(){
-    timer_queue.pop();
-}
-
-template <typename Type>
-Type * Timer<Type>::top(){
-    return timer_queue.top();
-}
-
-template <typename Type>
-size_t Timer<Type>::size(){
-    return timer_queue.size();
-}
-
-template <typename Type>
-void Timer<Type>::timers_reify ()
-{
-    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
-    //printf("mn_now%f\n",loop->mn_now);
-    if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
-    {
-        do
-        {
-            loop->ev_feed_event(timer_queue.top(),EV_TIMER);
-            timer_queue.pop();
-
-        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
-    }
-}
-template <typename Type>
-void Timer<Type>::periodics_reify ()
-{
-    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
-    //printf("mn_now%f\n",loop->mn_now);
-    if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
-    {
-        do
-        {
-            loop->ev_feed_event(timer_queue.top(),EV_PERIODIC);
-            timer_queue.pop();
-
-        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now);
-    }
-}
-
-template <typename Type>
-void Timer<Type>::periodics_reschedule ()
-{
-    std::vector<ev_periodic *> temp;
-    while (timer_queue.size()){
-        temp.push_back(timer_queue.top);
-        timer_queue.pop;
-    }
-    for(auto t:temp){
-        t->set_at(tm_to_time(t->get_t()));
-        timer_queue.push(t);
-    }
-}
 
 
 void ev_timer::stop(){
@@ -135,9 +66,8 @@ void ev_timer::call_back(ev_loop *loop, void *w, int event){
     cb(loop, static_cast<ev_timer*>(w), event);
 }
 
-void ev_periodic::init(std::function<void(ev_loop *, ev_periodic *, int)> cb_, double at_, tm *t_) {
+void ev_periodic::init(std::function<void(ev_loop *, ev_periodic *, int)> cb_, tm *t_) {
     cb = cb_;
-    at = at_;
     t = t_;
 }
 
@@ -156,14 +86,14 @@ void ev_periodic::start(ev_loop *loop) noexcept {
         return;
 
 #if EV_USE_TIMERFD
-    if (loop->timerfd == -2)
+    if (loop->timerfd == -1)
         get_loop()->evtimerfd_init ();
 #endif
 
     at = tm_to_time(t);
 
     loop->periodic->push(this);
-    ev_start (loop->periodic->size());
+    ev_start(loop->periodic->size());
 }
 
 void ev_periodic::stop() {
@@ -185,4 +115,12 @@ tm *ev_periodic::get_t() {
 
 void ev_periodic::set_t(tm * t_) {
     t = t_;
+}
+
+ev_periodic::ev_periodic():ev_watcher() {
+
+}
+
+void ev_periodic::call_back(ev_loop *loop, void *w, int event) {
+    cb(loop,static_cast<ev_periodic*>(w),event);
 }

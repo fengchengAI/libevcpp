@@ -77,3 +77,7 @@ ev_loop * ev_watcher::get_loop(){
 void ev_watcher::set_loop(ev_loop * loop_){
     loop = loop_;
 }
+
+void * ev_watcher::get_data() {
+    return data;
+}

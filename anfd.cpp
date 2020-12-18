@@ -83,12 +83,9 @@ void FdWatcher::fd_reify ()
             anfd[fd_].events = 0;
 
             for(auto w : anfd[fd_].list){
-                unsigned char a1 = anfd[fd_].events;
-                unsigned char a2 = (unsigned char)w->get_event();
                 anfd[fd_].events |= (unsigned char)w->get_event();
             }
-            unsigned char a3 = o_events;
-            unsigned char a4 = anfd[fd_].events;
+
             if (o_events != anfd[fd_].events)
                 o_reify = EV__IOFDSET; /* actually |= */
         }

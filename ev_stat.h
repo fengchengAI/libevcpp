@@ -12,6 +12,7 @@
 #include "climits"
 #include <array>
 #include <vector>
+#include <map>
 #include "watcher.h"
 #include "ev_loop.h"
 #define DEF_STAT_INTERVAL  5.0074891
@@ -21,7 +22,7 @@
 
 class ev_stat : public ev_watcher{
 public:
-    //ev_stat();
+
     ev_stat(std::function<void(ev_loop*, ev_stat*,int)>, std::string);
 
     void start(ev_loop* loop);
@@ -33,12 +34,15 @@ public:
     void set_wd(int wd_);
     void infy_add();
     void infy_del();
+    void call_back(ev_loop *loop, void *w, int) override;
+
     struct stat attr;
     struct stat prev;
 private:
     std::forward_list<ev_watcher* >list;
     //double interval;
     const std::string path;
+    File_Stat *file_stat;
     std::function<void(ev_loop*, ev_stat*, int)> cb;
     int fs_fd;
 
@@ -52,7 +56,7 @@ public:
 
     explicit File_Stat(ev_loop * loop_);
     int infy_newfd();
-    void infy_init();
+    int infy_init();
     void infy_wd(int fd, struct inotify_event *ev);
     void remove(int fd, ev_io* w);
     void push_front(int fd, ev_io* w);
@@ -62,7 +66,7 @@ public:
 
     int fs_fd;
 
-    std::array<std::forward_list<ev_stat*>, EV_INOTIFY_HASHSIZE> fs_hash ;
+    std::map<int, std::forward_list<ev_stat*>> fs_hash ;
     ev_io* fs_w;
 
     ev_loop * loop;

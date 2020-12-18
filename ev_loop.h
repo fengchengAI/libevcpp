@@ -103,6 +103,8 @@ public:
     double mn_now;    /* monotonic clock "now" 在创建loop的时候初始化，每次update_time更新这个*/
     double rtmn_diff; /* difference realtime - monotonic time */
 
+    struct XImpl;
+    XImpl* pImpl;
     std::vector<ev_watcher*> base_event;
     // TODO ? 这里是什么？
     /* 用于事件的反向馈送对于一个到期的时间事件，将它放进这里 */
@@ -113,6 +115,8 @@ public:
     //int pendingmax [NUMPRI];
     //std::array<int, NUMPRI> pendingcnt; //记录的是每个等级已经记录的监视器个数。也是用这个对 w_->pending进行排序，即使用++pendingcnt [NUMPRI]对w_->pending赋值
     int pendingpri; /* highest priority currently pending */
+
+    // TODO ？ 这是什么
     ev_watcher* pending_w; /* dummy pending watcher */
 
     double io_blocktime;

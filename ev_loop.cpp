@@ -60,7 +60,7 @@ ev_loop *ev_default_loop (unsigned int flags )
     return ev_default_loop_ptr;
 }
 
-void pipecb (ev_loop* loop, ev_watcher *iow, int revents)
+void pipecb (ev_loop* loop, ev_io *iow, int revents)
 {
     int i;
     if (revents & EV_READ)
@@ -106,10 +106,9 @@ void ev_loop::ev_break (int how)
 
 void ev_loop::loop_init (unsigned int flags) noexcept
 {
-    if (!backend)
-    {
+        activecnt = 0;
         origflags = flags;
-
+        idleall = 0;
         /* pid check not overridable via env */
         curpid = getpid ();
 
@@ -123,15 +122,16 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         now_floor          = mn_now;
         rtmn_diff          = ev_rt_now - mn_now;
         #if EV_FEATURE_API
+        /*
         invoke_cb          = [this](){
                                 ev_invoke_pending();
                             };
+        */
         #endif
 
         io_blocktime       = 0.;
         timeout_blocktime  = 0.;
         backend            = 0;
-        mutilplexing->backend_fd         = -1;
         sig_pending        = 0;
         #if EV_ASYNC_ENABLE
         async_pending      = 0;
@@ -142,13 +142,15 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         //evpipe [0]         = -1;
         //evpipe [1]         = -1;
         #if EV_USE_INOTIFY
+        file_stat = new File_Stat(this);
         file_stat->fs_fd   = flags & EVFLAG_NOINOTIFY ? -1 : -2;
         #endif
         #if EV_USE_SIGNALFD
         sigfd              = flags & EVFLAG_SIGNALFD  ? -2 : -1;
         #endif
         #if EV_USE_TIMERFD
-        timerfd            = flags & EVFLAG_NOTIMERFD ? -1 : -2;
+        timerfd            = -1;
+        timerfd_w = new ev_io();
         #endif
 
         if (!(flags & EVBACKEND_MASK))
@@ -157,7 +159,10 @@ void ev_loop::loop_init (unsigned int flags) noexcept
         if (!backend && (flags & EVBACKEND_EPOLL   ))
             backend = EVBACKEND_EPOLL;
         mutilplexing = selectMultiplexing(EVBACKEND_EPOLL);
+        //mutilplexing->backend_fd         = -1;
+
         mutilplexing->backend_init(this,flags);
+
         file_stat = new File_Stat(this);
         fdwtcher = new FdWatcher(this);
         timer = new Timer<ev_timer>(this);
@@ -167,10 +172,10 @@ void ev_loop::loop_init (unsigned int flags) noexcept
 
         #if EV_SIGNAL_ENABLE || EV_ASYNC_ENABLE
         event_io = new ev_io();
-        event_io->ev_watcher::init(pipecb);
+        event_io->init(pipecb,0,0);
         event_io->set_priority(EV_MAXPRI);
         #endif
-    }
+
 }
 
 void ev_loop::queue_events ( std::vector<ev_watcher *>events, int type)
@@ -253,10 +258,11 @@ int ev_loop::run (int flags)
     assert (("libev: ev_loop recursion during release detected", loop_done != EVBREAK_RECURSE));
 
     loop_done = EVBREAK_CANCEL;
-
     ev_invoke_pending();
+
     do  // 这里会一直循环下去
     {
+
 #if EV_VERIFY >= 2
         ev_verify (mullexing->);
 #endif
@@ -336,7 +342,7 @@ int ev_loop::run (int flags)
 #if EV_PERIODIC_ENABLE
                 if (periodic->size())
                 {
-                    double to = timer->top()->get_at() - ev_rt_now;
+                    double to = periodic->top()->get_at() - ev_rt_now;
                     if (waittime > to) waittime = to;
                 }
 #endif
@@ -375,8 +381,8 @@ int ev_loop::run (int flags)
 #endif
             assert ((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
             //printf("befoe_backend_poll%f\n", get_clock());
-            //printf("waittime%f\n",waittime);
-            mutilplexing->backend_poll (this, waittime);   // 里面有epoll_wait
+            printf("waittime%f\n",waittime);
+            mutilplexing->backend_poll(this, waittime);   // 里面有epoll_wait
             assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
             //printf("after_backend_poll%f\n", get_clock());
 
@@ -433,7 +439,7 @@ void ev_loop::ev_invoke_pending ()
 {
 
     pendingpri = NUMPRI;
-    printf("%d\n",pendingpri);
+    //printf("%d\n",pendingpri);
     do
     {
         --pendingpri;
@@ -597,7 +603,7 @@ void ev_loop::loop_fork() {
             timerfd_w->stop();
 
             close (timerfd);
-            timerfd = -2;
+            timerfd = -1;
 
             evtimerfd_init();
             /* reschedule periodics, in case we missed something */

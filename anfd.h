@@ -31,6 +31,7 @@ struct ANFD
     unsigned int egen;    /* generation counter to counter epoll bugs */
 #endif
 };
+
 class FdWatcher {
 public:
 
