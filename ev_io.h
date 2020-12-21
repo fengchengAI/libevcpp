@@ -18,7 +18,7 @@ public:
     void init(std::function<void(ev_loop *, ev_io *, int)> cb, int fd_,int events_);
     void call_back(ev_loop *loop, void *w, int) override;
 
-    void start (ev_loop *loop);
+    void start(ev_loop *loop);
     void stop();
     int get_fd();
     void set_fd(int fd_);

@@ -19,7 +19,7 @@ class ev_loop;
 
 #define NUMPRI 5
 
-static ev_loop *ev_default_loop_ptr = nullptr;
+extern ev_loop * ev_default_loop_ptr;
 class Signal;
 class ev_watcher;
 class FdWatcher;
@@ -117,12 +117,12 @@ public:
     int pendingpri; /* highest priority currently pending */
 
     // TODO ？ 这是什么
-    ev_watcher* pending_w; /* dummy pending watcher */
+    //ev_watcher* pending_w; /* dummy pending watcher */
 
     double io_blocktime;
     double timeout_blocktime;
 
-    int backend;  //一个flag指向后台哪个方法，select，epollpoll
+    int backend;  //一个flag指向后台哪个方法，select，epoll, poll
     int activecnt; /* total number of active events ("refcount"; */ //loop挂载的事件数，当调用ev_TYPE_start中后再会在子函数内加一
     sig_atomic_t loop_done; /* signal by ev_break */
 
@@ -141,9 +141,11 @@ public:
     FdWatcher* fdwtcher;
     Timer<ev_timer> *timer;
 
+#if    EV_ASYNC_ENABLE
     int event_fd;
     //int evpipe [2];
     ev_io *event_io;
+#endif
     //sig_atomic_t pipe_write_wanted;
     //sig_atomic_t pipe_write_skipped;
 

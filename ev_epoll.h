@@ -5,7 +5,8 @@
 #ifndef LIBEVCPP_EV_EPOLL_H
 #define LIBEVCPP_EV_EPOLL_H
 #include "ev_loop.h"
-
+// TODO?
+// Multiplexing是一个基类，如果要实现select，poll等方法，就继承此类
 class Multiplexing{
 public:
     Multiplexing();
@@ -23,7 +24,7 @@ class ev_epoll : public Multiplexing{
 public:
     ev_epoll(){};
 
-    int epoll_epoll_create ();
+    int epoll_epoll_create();
     //void init(ev_loop *loop, int flags);
     struct epoll_event * epoll_events;
     int epoll_eventmax;
@@ -39,6 +40,6 @@ public:
 
 
 
-Multiplexing * selectMultiplexing( int condition );
+Multiplexing * selectMultiplexing(int condition );
 
 #endif //LIBEVCPP_EV_EPOLL_H

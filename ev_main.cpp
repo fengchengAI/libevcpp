@@ -12,16 +12,23 @@
 #include "utils.h"
 #include "ev_other_watcher.h"
 #include "ev_stat.h"
+#include "ev_signal.h"
 #include <thread>
 #include <cstdio> // for puts
 
-
- void async_cb(struct ev_loop *loop, ev_periodic *watcher, int revents)
+void async_cb(struct ev_loop *loop, ev_timer *watcher, int revents)
 {
     fprintf(stdout, "ring on\n");
 }
-
-
+void sigint_cb (struct ev_loop *loop, ev_signal *w, int revents)
+{
+    puts ( "signal ....." );
+}
+void child_cb (struct ev_loop *loop, ev_child *w, int revents)
+{
+    w->stop();
+    printf ("process %d exited with status %x\n", w->rpid, w->rstatus);
+}
 int main ()
 {
     /*
@@ -40,19 +47,26 @@ int main ()
     timeout_watcher.start(loop);
     */
     // now wait for events to arrive
-    auto t = time(0);
-    tm *tt = localtime(&t);
 
-    double dd = tm_to_time (tt);
-    tt->tm_sec += 30;
     ev_loop *loop = ev_default_loop(EVFLAG_SIGNALFD);
 
+    ev_child cw;
+    pid_t pid = fork();
+    printf("pid %d\n",pid);
+    if (pid < 0)
+        printf("cerr\n");
+    else if (pid == 0)
+    {
+        sleep(5);
+        exit(1);
+    }else {
+        cw.init(child_cb, pid, 0);
+        cw.start(loop);
+        loop->run(0);
+        loop->destroy();
+        delete(loop);
+    }
 
-    ev_periodic periodic_watcher;
-
-    periodic_watcher.init(async_cb,tt);
-    periodic_watcher.start(loop);
-    loop->run(0);
 
 
     // break was called, so exit

@@ -23,9 +23,9 @@ void ev_watcher::init(std::function<void(ev_loop *loop, ev_watcher *w, int)> cb_
 }
 
 void ev_watcher::clear_pending(){
-    if (pending)
+    if(pending)
     {
-        loop->pendings [priority-EV_MINPRI][pending - 1].w = loop->pending_w;
+        loop->pendings[priority-EV_MINPRI][pending - 1].w = nullptr;
         pending = 0;
     }
 }
@@ -60,7 +60,7 @@ int ev_watcher::get_active()
     return active;
 }
 
-void ev_watcher::pri_adjust ()
+void ev_watcher::pri_adjust()
 {
     int pri = priority;
     pri = pri < EV_MINPRI ? EV_MINPRI : pri;
@@ -68,9 +68,9 @@ void ev_watcher::pri_adjust ()
     priority = pri;
 }
 
-void ev_watcher::ev_start (int active_)
+void ev_watcher::ev_start(int active_)
 {
-    pri_adjust ();
+    pri_adjust();
     active = active_;
     ++loop->activecnt;
 }

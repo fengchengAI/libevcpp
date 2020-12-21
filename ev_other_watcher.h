@@ -7,21 +7,23 @@
 
 #include "watcher.h"
 #include "ev_loop.h"
-
-class ec_child : public ev_watcher
+#include <map>
+class ev_child : public ev_watcher
 {
+public:
+    ev_child();
     void start(ev_loop *);
-    void stop();
-    void init(std::function<void(ev_loop *loop, ec_child *w, int)> , int ,int );
-    std::function<void(ev_loop *, ec_child *, int)> cb;
-
-    std::forward_list<ev_watcher*> list;
+    void stop() override;
+    void init(std::function<void(ev_loop *loop, ev_child *w, int)> , int ,int );
+    void call_back(ev_loop *loop, void *w, int) override;
     int flags;   /* private */
     int pid;     /* ro */
     int rpid;    /* rw, holds the received pid */
     int rstatus; /* rw, holds the exit status, use the macros from sys/wait.h */
-
+    std::function<void(ev_loop *, ev_child *, int)> cb;
 };
+
+extern std::map<int,std::forward_list<ev_child*>> childs;
 
 class ev_async : public ev_watcher
 {
@@ -29,7 +31,7 @@ public:
     ev_async();
     void init(std::function<void(ev_loop *, ev_async *, int)> cb_);
     void start(ev_loop *loop);
-    void stop();
+    void stop() override;
     void async_send();
     void call_back(ev_loop *loop, void *w, int) override;
 

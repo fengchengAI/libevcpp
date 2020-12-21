@@ -52,5 +52,4 @@ private:
     ev_loop *loop;
     std::function<void(ev_loop *loop, ev_watcher *w, int)>cb;
 };
-using ev_watcher_list = std::forward_list<ev_watcher*>;
 #endif //LIBEVCPP_WATCHER_H

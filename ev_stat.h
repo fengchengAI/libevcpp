@@ -26,7 +26,7 @@ public:
     ev_stat(std::function<void(ev_loop*, ev_stat*,int)>, std::string);
 
     void start(ev_loop* loop);
-    void stop();
+    void stop() override;
     void stat();
     int get_wd();
     int get_fd();
@@ -39,7 +39,7 @@ public:
     struct stat attr;
     struct stat prev;
 private:
-    std::forward_list<ev_watcher* >list;
+    //std::forward_list<ev_watcher* >list;
     //double interval;
     const std::string path;
     File_Stat *file_stat;
@@ -53,24 +53,22 @@ private:
 
 class File_Stat{
 public:
-
+    ~File_Stat();
     explicit File_Stat(ev_loop * loop_);
     int infy_newfd();
     int infy_init();
     void infy_wd(int fd, struct inotify_event *ev);
-    void remove(int fd, ev_io* w);
-    void push_front(int fd, ev_io* w);
+    void remove(int fd, ev_stat* w);
+    void push_front(int fd, ev_stat* w);
     size_t size();
     int get_fd();
     ev_io *get_ev_io();
 
+private:
     int fs_fd;
-
-    std::map<int, std::forward_list<ev_stat*>> fs_hash ;
+    std::map<int, std::forward_list<ev_stat*>> fs_hash;
     ev_io* fs_w;
-
-    ev_loop * loop;
-
+    ev_loop *loop;
 
 };
 

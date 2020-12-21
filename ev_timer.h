@@ -17,7 +17,7 @@ public:
     ev_timer();
 
     void init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb, double at_, double repeat_);
-    void start (ev_loop *loop) noexcept ;
+    void start(ev_loop *loop) noexcept ;
     void set_at(double );
     double get_at();
     void stop() ;
@@ -38,7 +38,7 @@ public:
     ev_periodic();
 
     void init(std::function<void(ev_loop *loop, ev_periodic *w, int)> cb, tm* t);
-    void start (ev_loop *loop) noexcept ;
+    void start(ev_loop *loop) noexcept ;
     void set_at(double );
     double get_at();
     void stop();
@@ -99,42 +99,42 @@ size_t Timer<Type>::size(){
 }
 
 template <typename Type>
-void Timer<Type>::timers_reify ()
+void Timer<Type>::timers_reify()
 {
-    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
+    //printf("ANHE_at(timers [HEAP0]%f\n",timer_queue.top()->get_at());
     //printf("mn_now%f\n",loop->mn_now);
-    if (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
+    if(timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now)  // 过期了一件事件，
     {
         do
         {
             loop->ev_feed_event(timer_queue.top(),EV_TIMER);
             timer_queue.pop();
 
-        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
+        }while(timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
     }
 }
 template <typename Type>
-void Timer<Type>::periodics_reify ()
+void Timer<Type>::periodics_reify()
 {
-    //printf("ANHE_at (timers [HEAP0]%f\n",timer_queue.top()->get_at());
+    //printf("ANHE_at(timers [HEAP0]%f\n",timer_queue.top()->get_at());
     //printf("mn_now%f\n",loop->mn_now);
     //std::cout<<timer_queue.top()->get_at()<<"  --  "<<loop->ev_rt_now<<std::endl;
-    if (timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now)  // 过期了一件事件，
+    if(timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now)  // 过期了一件事件，
     {
         do
         {
             loop->ev_feed_event(timer_queue.top(),EV_PERIODIC);
             timer_queue.pop();
 
-        }while (timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now);
+        }while(timer_queue.size() && timer_queue.top()->get_at() < loop->ev_rt_now);
     }
 }
 
 template <typename Type>
-void Timer<Type>::periodics_reschedule ()
+void Timer<Type>::periodics_reschedule()
 {
     std::vector<ev_periodic *> temp;
-    while (timer_queue.size()){
+    while(timer_queue.size()){
         temp.push_back(timer_queue.top());
         timer_queue.pop();
     }

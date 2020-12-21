@@ -24,7 +24,7 @@ void ev_timer::stop(){
 
     ev_watcher::clear_pending();
 
-    if (!get_active())
+    if(!get_active())
         return;
 
     set_at(get_at()-get_loop()->mn_now);
@@ -42,23 +42,23 @@ void ev_timer::init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb_, do
     at = at_;
     repeat = repeat_;
 }
-void ev_timer::start (ev_loop *loop) noexcept
+void ev_timer::start(ev_loop *loop) noexcept
 {
     set_loop(loop);
 
-    if (get_active())
+    if(get_active())
         return;
 
     at = at+loop->mn_now; // 这里的到期时间是，创建后的时间间隔
 
-    assert (("libev: ev_timer_start called with negative timer repeat value", get_repeat() >= 0.));
+    assert(("libev: ev_timer_start called with negative timer repeat value", get_repeat() >= 0.));
 
     ;
     // TODO ? 应该将++timercnt;移到这个函数的后面，否则timers的第一个元素无法赋值
     // 这就会堆吧，从索引1开始而不是0
     //++timercnt;
     loop->timer->push(this);
-    ev_start (loop->timer->size());
+    ev_start(loop->timer->size());
 
 }
 
@@ -82,11 +82,11 @@ double ev_periodic::get_at() {
 void ev_periodic::start(ev_loop *loop) noexcept {
     set_loop(loop);
 
-    if (get_active())
+    if(get_active())
         return;
 
 #if EV_USE_TIMERFD
-    if (loop->timerfd == -1)
+    if(loop->timerfd == -1)
         get_loop()->evtimerfd_init();
 #endif
 
@@ -99,7 +99,7 @@ void ev_periodic::start(ev_loop *loop) noexcept {
 void ev_periodic::stop() {
     ev_watcher::clear_pending();
 
-    if (!get_active())
+    if(!get_active())
         return;
     ev_watcher::stop();
 }

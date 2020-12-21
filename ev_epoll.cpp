@@ -80,15 +80,14 @@
 Multiplexing * selectMultiplexing( int condition ){
     switch (condition) {
         case  0x00000004U:
-            return new ev_epoll();
+            return  new ev_epoll();
     }
 }
 class FdWatcher;
 class ev_loop;
 const int  EV_EMASK_EPERM = 0x80;
 
-void ev_epoll::backend_modify (ev_loop *loop, int fd, int oev, int nev)
-{
+void ev_epoll::backend_modify (ev_loop *loop, int fd, int oev, int nev) {
     struct epoll_event ev;
     unsigned char oldmask;
 
@@ -104,55 +103,46 @@ void ev_epoll::backend_modify (ev_loop *loop, int fd, int oev, int nev)
     loop->fdwtcher->get_anfd(fd).emask = static_cast<unsigned char>(nev);
 
     /* store the generation counter in the upper 32 bits, the fd in the lower 32 bits */
-    ev.data.u64 = (uint64_t)(uint32_t)fd
-                  | ((uint64_t)(uint32_t)(++loop->fdwtcher->get_anfd(fd).egen) << 32);
-    ev.events   = (nev & EV_READ  ? EPOLLIN  : 0)
-                  | (nev & EV_WRITE ? EPOLLOUT : 0);
+    ev.data.u64 = (uint64_t) (uint32_t) fd
+                  | ((uint64_t) (uint32_t) (++loop->fdwtcher->get_anfd(fd).egen) << 32);
+    ev.events = (nev & EV_READ ? EPOLLIN : 0)
+                | (nev & EV_WRITE ? EPOLLOUT : 0);
 
-    if  (!epoll_ctl (backend_fd, oev && (oldmask != nev) ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev))
+    if (!epoll_ctl(backend_fd, oev && (oldmask != nev) ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev))
         return;
+    do{
+        if (errno == ENOENT) {
+            /* if ENOENT then the fd went away, so try to do the right thing */
+            if (!nev)
+            break;
 
-    if (errno == ENOENT)
-    {
-        /* if ENOENT then the fd went away, so try to do the right thing */
-        //if (!nev)
-        //  goto dec_egen;
+            if (!epoll_ctl(backend_fd, EPOLL_CTL_ADD, fd, &ev))
+                return;
+        } else if (errno == EEXIST) {
+            /* EEXIST means we ignored a previous DEL, but the fd is still active */
+            /* if the kernel mask is the same as the ( mask, we assume it hasn't changed */
+            if (oldmask == nev) {
+                break;
+            }
+            if (!epoll_ctl(backend_fd, EPOLL_CTL_MOD, fd, &ev))
+                return;
+        } else if (errno == EPERM) {
+            /* EPERM means the fd is always ready, but epoll is too snobbish */
+            /* to handle it, unlike select or poll. */
+            loop->fdwtcher->get_anfd(fd).emask = EV_EMASK_EPERM;
 
-        if (!epoll_ctl (backend_fd, EPOLL_CTL_ADD, fd, &ev))
+            /* add fd to epoll_eperms, if not already inside */
+            if (!(oldmask & EV_EMASK_EPERM)) {
+                //  TODO ?
+                //array_needsize (int, epoll_eperms, epoll_epermmax, epoll_epermcnt + 1, array_needsize_noinit);
+                //epoll_eperms [epoll_epermcnt++] = fd;
+            }
+
             return;
-    }
-    else if (errno == EEXIST)
-    {
-        /* EEXIST means we ignored a previous DEL, but the fd is still active */
-        /* if the kernel mask is the same as the new mask, we assume it hasn't changed */
-        if (oldmask == nev)
-        {
-            --loop->fdwtcher->get_anfd(fd).egen;
-            return;
-        }
-
-        if (!epoll_ctl (backend_fd, EPOLL_CTL_MOD, fd, &ev))
-            return;
-    }
-    else if (errno == EPERM)
-    {
-        /* EPERM means the fd is always ready, but epoll is too snobbish */
-        /* to handle it, unlike select or poll. */
-        loop->fdwtcher->get_anfd(fd).emask = EV_EMASK_EPERM;
-
-        /* add fd to epoll_eperms, if not already inside */
-        if (!(oldmask & EV_EMASK_EPERM))
-        {
-            //  TODO ?
-            //array_needsize (int, epoll_eperms, epoll_epermmax, epoll_epermcnt + 1, array_needsize_noinit);
-            //epoll_eperms [epoll_epermcnt++] = fd;
-        }
-
-        return;
-    }
-    else
-        assert (("libev: I/O watcher with invalid fd found in epoll_ctl", errno != EBADF && errno != ELOOP && errno != EINVAL));
-
+        } else
+            assert (("libev: I/O watcher with invalid fd found in epoll_ctl", errno != EBADF && errno != ELOOP &&
+                                                                              errno != EINVAL));
+    }while (0);
     loop->fdwtcher->fd_kill(fd);
 
     /* 我们没有成功调用epoll_ctl，因此再次减少了生成计数器*/

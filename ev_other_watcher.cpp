@@ -4,30 +4,44 @@
 
 #include "ev_other_watcher.h"
 #include <unistd.h>
-static std::array<std::forward_list<ec_child*>, EV_PID_HASHSIZE>childs ;
+#include <map>
 
-void ec_child::start(ev_loop *loop) {
+// TODO 这个结构体正确吗
+std::map<int,std::forward_list<ev_child*>> childs;
+
+void ev_child::start(ev_loop *loop) {
+    set_loop(loop);
 
 #if EV_MULTIPLICITY
-    assert (("libev: child watchers are only supported in the default loop", loop == ev_default_loop_ptr));
+    assert(("libev: child watchers are only supported in the default loop", loop == ev_default_loop_ptr));
 #endif
     if(get_active())
         return;
-    childs[pid&((EV_PID_HASHSIZE) - 1)].push_front(this);
+    ev_start(1);
+    childs[pid].push_front(this);
+
 }
 
-void ec_child::stop() {
+void ev_child::stop() {
     clear_pending();
     if(!get_active())
         return;
-    childs[pid&((EV_PID_HASHSIZE) - 1)].remove(this);
+    childs[pid].remove(this);
     ev_watcher::stop();
 }
 
-void ec_child::init(std::function<void(ev_loop *, ec_child *, int)> cb_, int pid_, int flag_) {
+void ev_child::init(std::function<void(ev_loop *, ev_child *, int)> cb_, int pid_, int flag_) {
     cb = cb_;
     pid = pid_;
     flags = flag_;
+}
+
+ev_child::ev_child() : ev_watcher(){
+
+}
+
+void ev_child::call_back(ev_loop *loop, void *w, int event) {
+    cb(loop,static_cast<ev_child*>(w), event);
 }
 
 sig_atomic_t ev_async::get_sent() {
@@ -45,7 +59,7 @@ void ev_async::start(ev_loop *loop) {
         return;
     sent = 0;
     get_loop()->event_init();
-    ev_start( get_loop()->asyncs.size()+1);
+    ev_start(get_loop()->asyncs.size()+1);
     get_loop()->asyncs.push_back(this);
 }
 
@@ -56,7 +70,8 @@ void ev_async::stop() {
     ev_watcher::stop();
 }
 
-ev_async::ev_async(): ev_watcher() {
+ev_async::ev_async():ev_watcher(),sent(0)
+{
 
 }
 
@@ -74,7 +89,7 @@ void ev_async::async_send() {
 
 #if EV_USE_EVENTFD
     uint64_t counter = 1;
-    write (get_loop()->event_fd, &counter, sizeof (uint64_t));
+    write(get_loop()->event_fd, &counter, sizeof(uint64_t));
 #endif
     errno = old_errno;
 }
