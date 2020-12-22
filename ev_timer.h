@@ -107,8 +107,15 @@ void Timer<Type>::timers_reify()
     {
         do
         {
-            loop->ev_feed_event(timer_queue.top(),EV_TIMER);
+            ev_timer * temp = timer_queue.top();
             timer_queue.pop();
+
+            loop->ev_feed_event(temp,EV_TIMER);
+            if (temp->get_repeat()){
+                temp->set_at(temp->get_at()+temp->get_repeat());
+                timer_queue.push(temp);
+            }
+            //timer_queue.pop();
 
         }while(timer_queue.size() && timer_queue.top()->get_at() < loop->mn_now);
     }

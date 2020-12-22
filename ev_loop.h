@@ -88,24 +88,21 @@ public:
     ev_loop();
     int run(int flags);
     void ev_invoke_pending();
-    void queue_events ( std::vector<ev_watcher *>events, int type);
+    void queue_events(std::vector<ev_watcher *>events, int type);
     void destroy();
     void event_init();
-    void loop_init (unsigned int flags ) noexcept;
-    void ev_feed_event (ev_watcher *w, int revents) noexcept;
-    void time_update (double max_block);
-    void evtimerfd_init ();
-    void idle_reify ();
+    void loop_init(unsigned int flags ) noexcept;
+    void ev_feed_event(ev_watcher *w, int revents) noexcept;
+    void time_update(double max_block);
+    void evtimerfd_init();
+    void idle_reify();
     void loop_fork();
-    void ev_break (int how);
+    void ev_break(int how);
     double ev_rt_now;
     double now_floor; /* last time we refreshed rt_time */
     double mn_now;    /* monotonic clock "now" 在创建loop的时候初始化，每次update_time更新这个*/
     double rtmn_diff; /* difference realtime - monotonic time */
 
-    struct XImpl;
-    XImpl* pImpl;
-    std::vector<ev_watcher*> base_event;
     // TODO ? 这里是什么？
     /* 用于事件的反向馈送对于一个到期的时间事件，将它放进这里 */
 
@@ -123,15 +120,15 @@ public:
     double timeout_blocktime;
 
     int backend;  //一个flag指向后台哪个方法，select，epoll, poll
-    int activecnt; /* total number of active events ("refcount"; */ //loop挂载的事件数，当调用ev_TYPE_start中后再会在子函数内加一
+    int activecnt; /* total number of active events("refcount"; */ //loop挂载的事件数，当调用ev_TYPE_start中后再会在子函数内加一
     sig_atomic_t loop_done; /* signal by ev_break */
 
     //int backend_fd;  // epoll_creat创建的结果
     //double backend_mintime; /* assumed typical timer resolution */
 
 
-    //void (*backend_modify)(ev_loop * loop, int fd, int oev ,int nev);
-    //void (*backend_poll)(ev_loop * loop, double );
+    //void(*backend_modify)(ev_loop * loop, int fd, int oev ,int nev);
+    //void(*backend_poll)(ev_loop * loop, double );
 
 
 // anfds是一个指向ANFD大小为anfdmax的数组，其索引值为文件描述符
@@ -203,6 +200,6 @@ public:
 
 };
 
-ev_loop *ev_default_loop (unsigned int flags = 0);
+ev_loop *ev_default_loop(unsigned int flags = 0);
 
 #endif //LIBEVCPP_EV_LOOP_H

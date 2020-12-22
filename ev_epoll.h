@@ -25,7 +25,6 @@ public:
     ev_epoll(){};
 
     int epoll_epoll_create();
-    //void init(ev_loop *loop, int flags);
     struct epoll_event * epoll_events;
     int epoll_eventmax;
     int * epoll_eperms;
@@ -37,8 +36,6 @@ public:
     void destroy() override;
     void fork(ev_loop * loop) override;
 };
-
-
 
 Multiplexing * selectMultiplexing(int condition );
 

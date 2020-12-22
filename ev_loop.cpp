@@ -67,29 +67,16 @@ void pipecb(ev_loop* loop, ev_io *iow, int revents)
             read(loop->event_fd, &counter, sizeof(uint64_t));
         }
     }
-    /*
-    loop->pipe_write_skipped = 0;
 
-    #if EV_SIGNAL_ENABLE
-    if(loop->sig_pending)
-    {
-        loop->sig_pending = 0;
-
-        for(i = NSIG - 1; i--; )
-            if(signals [i].pending)
-                ev_feed_signal_event(loop, i + 1);
-    }
-    #endif
-    */
     #if EV_ASYNC_ENABLE
     if(loop->async_pending)
     {
         loop->async_pending = 0;
 
         for(i = loop->asyncs.size(); i--; )
-            if(loop->asyncs [i]->get_sent())
+            if(loop->asyncs[i]->get_sent())
             {
-                loop->asyncs [i]->set_sent(0);
+                loop->asyncs[i]->set_sent(0);
                 loop->ev_feed_event(dynamic_cast<ev_watcher *>(loop->asyncs.at(i)), EV_ASYNC);
             }
     }
@@ -259,7 +246,7 @@ int ev_loop::run(int flags)
     {
 
 #if EV_VERIFY >= 2
-        ev_verify(mullexing->);
+        //ev_verify(mullexing->);
 #endif
 
         if(curpid) /* penalise the forking check even more */
@@ -444,7 +431,7 @@ void ev_loop::ev_invoke_pending()
             auto p = pendings[pendingpri].back();
             pendings[pendingpri].pop_back();
             p.w->set_pending(0);
-            p.w->call_back( this, p.w, p.events);
+            p.w->call_back(this, p.w, p.events);
         }
     }
     while(pendingpri);
@@ -556,8 +543,6 @@ void ev_loop::destroy() {
             close(mutilplexing->backend_fd);
         }
 
-
-
     #if EV_USE_EPOLL
         if(backend == EVBACKEND_EPOLL   ) mutilplexing->destroy();
         delete(mutilplexing);
@@ -595,7 +580,7 @@ void ev_loop::destroy() {
 void ev_loop::loop_fork() {
 
 #if EV_USE_EPOLL
-    if(backend == EVBACKEND_EPOLL   ) mutilplexing->fork(this);
+    if(backend == EVBACKEND_EPOLL) mutilplexing->fork(this);
 #endif
 #if EV_USE_INOTIFY
     //infy_fork(EV_A);
@@ -603,9 +588,7 @@ void ev_loop::loop_fork() {
 
     if(postfork != 2)
     {
-#if EV_USE_SIGNALFD
-        /* surprisingly, nothing needs to be done for signalfd, accoridng to docs, it does the right thing on fork */
-#endif
+
 
 #if EV_USE_TIMERFD
         if(timerfd_w->get_active())

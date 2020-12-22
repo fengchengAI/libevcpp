@@ -22,8 +22,8 @@
 
 class ev_stat : public ev_watcher{
 public:
-
-    ev_stat(std::function<void(ev_loop*, ev_stat*,int)>, std::string);
+    ev_stat();
+    void init (std::function<void(ev_loop*, ev_stat*,int)>, std::string);
 
     void start(ev_loop* loop);
     void stop() override;
@@ -39,13 +39,11 @@ public:
     struct stat attr;
     struct stat prev;
 private:
-    //std::forward_list<ev_watcher* >list;
-    //double interval;
-    const std::string path;
+
+    std::string path;
     File_Stat *file_stat;
     std::function<void(ev_loop*, ev_stat*, int)> cb;
     int fs_fd;
-
     int wd; /* wd for inotify, fd for kqueue */
 };
 
@@ -62,14 +60,13 @@ public:
     void push_front(int fd, ev_stat* w);
     size_t size();
     int get_fd();
-    ev_io *get_ev_io();
+    //ev_io *get_ev_io();
 
 private:
     int fs_fd;
     std::map<int, std::forward_list<ev_stat*>> fs_hash;
     ev_io* fs_w;
     ev_loop *loop;
-
 };
 
 void stat_timer_cb (ev_loop* loop, ev_stat *w, int revents);

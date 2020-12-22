@@ -47,17 +47,17 @@ void ev_feed_signal_event(ev_loop* loop, int signum)
         loop->ev_feed_event(i,EV_SIGNAL);
 }
 
-void child_reap(ev_loop* loop, int chain, int pid, int status)
+void child_reap(ev_loop* loop, int pid, int status)
 {
     int traced = WIFSTOPPED(status) || WIFCONTINUED(status);
-    for(auto w : childs.at(chain))
+    for(auto w : childs.at(pid))
     {
-        if((w->pid == pid || !w->pid)
-            &&(!traced ||(w->flags & 1)))
+        if((w->get_pid() == pid || !w->get_pid())
+            &&(!traced ||(w->get_flags() & 1)))
         {
             w->set_priority(EV_MAXPRI);
-            w->rpid = pid;
-            w->rstatus = status;
+            w->set_rpid(pid);
+            w->set_rstatus(status);
             loop->ev_feed_event(w,EV_CHILD);
         }
     }
@@ -65,8 +65,7 @@ void child_reap(ev_loop* loop, int chain, int pid, int status)
 
 void sigfdcb(ev_loop*loop, ev_io *iow, int revents)
 {
-    // TODO 在child事件下，为什么会进入这里？
-    std::cout<<"sigfdcb "<<std::endl;
+
     struct signalfd_siginfo si[2], *sip; /* these structs are big */
 
     for(;;)
@@ -111,7 +110,6 @@ void ev_signal::start(ev_loop *loop)
 
 void childcb(ev_loop* loop, ev_signal * w, int revents)
 {
-    std::cout<<"childcb"<<std::endl;
     int pid, status;
 
     /* some systems define WCONTINUED but then fail to support it(linux 2.4) */
@@ -123,13 +121,10 @@ void childcb(ev_loop* loop, ev_signal * w, int revents)
 
     /* make sure we are called again until all children have been reaped */
     /* we need to do it this way so that the callback gets called before we continue */
-    // TODO? 下面是什么
-    //loop->ev_feed_event(w,EV_SIGNAL);
-    child_reap(loop, pid, pid, status);
-    /*
-    if((EV_PID_HASHSIZE) > 1)
-        w->child_reap(0, pid, status); // this might trigger a watcher twice, but feed_event catches that
-    */
+
+    loop->ev_feed_event(w,EV_SIGNAL);
+    child_reap(loop, pid, status);
+
 }
 
 void ev_signal::stop()

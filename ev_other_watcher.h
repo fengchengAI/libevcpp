@@ -16,6 +16,17 @@ public:
     void stop() override;
     void init(std::function<void(ev_loop *loop, ev_child *w, int)> , int ,int );
     void call_back(ev_loop *loop, void *w, int) override;
+    void set_pid(int pid_);
+    void set_rpid(int rpid_);
+    void set_rstatus(int rstatus_);
+    void set_flags(int flags_);
+    int get_pid();
+    int get_rpid();
+    int get_rstatus();
+    int get_flags();
+
+
+private:
     int flags;   /* private */
     int pid;     /* ro */
     int rpid;    /* rw, holds the received pid */

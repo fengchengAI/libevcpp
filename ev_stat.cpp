@@ -78,9 +78,13 @@ void ev_stat::start(ev_loop *loop)
     ev_start(1);
 }
 
-ev_stat::ev_stat(std::function<void(ev_loop*, ev_stat*,int)> cb_, std::string str):
-        ev_watcher(),cb(cb_),path(str)
+ev_stat::ev_stat():ev_watcher()
+{}
+
+void ev_stat::init(std::function<void(ev_loop*, ev_stat*,int)> cb_, std::string str)
 {
+    cb = cb_;
+    path = str;
 }
 
 
@@ -134,9 +138,11 @@ int File_Stat::get_fd() {
     return fs_fd;
 }
 
+/*
 ev_io * File_Stat::get_ev_io() {
     return fs_w;
 }
+*/
 
 void File_Stat::infy_wd(int fd, struct inotify_event *ev)
 {

@@ -44,6 +44,38 @@ void ev_child::call_back(ev_loop *loop, void *w, int event) {
     cb(loop,static_cast<ev_child*>(w), event);
 }
 
+void ev_child::set_pid(int pid_) {
+    pid = pid_;
+}
+
+void ev_child::set_rpid(int rpid_) {
+    rpid = rpid_;
+}
+
+void ev_child::set_rstatus(int rstatus_) {
+    rstatus = rstatus_;
+}
+
+void ev_child::set_flags(int flags_) {
+    flags = flags_;
+}
+
+int ev_child::get_pid() {
+    return pid;
+}
+
+int ev_child::get_rpid() {
+    return rpid;
+}
+
+int ev_child::get_rstatus() {
+    return rstatus;
+}
+
+int ev_child::get_flags() {
+    return flags;
+}
+
 sig_atomic_t ev_async::get_sent() {
     return sent;
 }
@@ -54,13 +86,12 @@ void ev_async::set_sent(sig_atomic_t sent_) {
 
 void ev_async::start(ev_loop *loop) {
     set_loop(loop);
-    loop->base_event.push_back(this);
     if(get_active())
         return;
     sent = 0;
     get_loop()->event_init();
-    ev_start(get_loop()->asyncs.size()+1);
     get_loop()->asyncs.push_back(this);
+    ev_start(get_loop()->asyncs.size());
 }
 
 void ev_async::stop() {

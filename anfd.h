@@ -31,7 +31,7 @@ struct ANFD
 #endif
 };
 
-class FdWatcher {
+class FdWatcher{
 public:
 
     FdWatcher(ev_loop * loop_);
@@ -50,7 +50,7 @@ private:
     ev_loop * loop;
     std::map<int,ANFD> anfd;
     std::vector<int> fdchanges;
-    std::vector<int> fdkills;
+    //std::vector<int> fdkills;
 
 };
 

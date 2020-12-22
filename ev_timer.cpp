@@ -53,10 +53,6 @@ void ev_timer::start(ev_loop *loop) noexcept
 
     assert(("libev: ev_timer_start called with negative timer repeat value", get_repeat() >= 0.));
 
-    ;
-    // TODO ? 应该将++timercnt;移到这个函数的后面，否则timers的第一个元素无法赋值
-    // 这就会堆吧，从索引1开始而不是0
-    //++timercnt;
     loop->timer->push(this);
     ev_start(loop->timer->size());
 
@@ -81,10 +77,10 @@ double ev_periodic::get_at() {
 
 void ev_periodic::start(ev_loop *loop) noexcept {
     set_loop(loop);
-
     if(get_active())
         return;
 
+// 每隔一段时间更新下系统时间
 #if EV_USE_TIMERFD
     if(loop->timerfd == -1)
         get_loop()->evtimerfd_init();
