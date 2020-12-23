@@ -22,9 +22,6 @@
 #define EVBREAK_RECURSE 0x80
 
 ev_loop * ev_default_loop_ptr = nullptr;
-void pendingcb(ev_loop *loop, ev_watcher *w, int revents)
-{
-}
 
 
 
@@ -82,6 +79,7 @@ void pipecb(ev_loop* loop, ev_io *iow, int revents)
     }
     #endif
 }
+
 void ev_loop::ev_break(int how)
 {
     loop_done = how;

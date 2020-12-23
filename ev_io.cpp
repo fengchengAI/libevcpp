@@ -4,19 +4,21 @@
 
 #include "ev_io.h"
 
+#include <utility>
+
 #include "anfd.h"
 
 /* set in reify when reification needed */
 #define EV_ANFD_REIFY 1
 
-ev_io::ev_io() : ev_watcher()
+ev_io::ev_io() : ev_watcher(),fd(0),events(0)
 {
 }
-
+ev_io::~ev_io()= default;
 
 void ev_io::init(std::function<void(ev_loop *loop, ev_io *w, int)> cb_, int fd_,int events_)
 {
-    cb = cb_;
+    cb = std::move(cb_);
     fd = fd_;
     events = events_ | EV__IOFDSET;
 }
@@ -70,7 +72,7 @@ void ev_io::start(ev_loop *loop)
 
 }
 
-int ev_io::get_fd() {
+int ev_io::get_fd() const {
     return fd;
 }
 
@@ -82,6 +84,6 @@ void ev_io::set_event(int event_) {
     events = event_;
 }
 
-int ev_io:: get_event() {
+int ev_io::get_event() const {
     return events;
 }

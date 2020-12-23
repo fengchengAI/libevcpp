@@ -16,11 +16,13 @@ class Signal;
 class ev_signal : public ev_watcher
 {
 public:
+    ev_signal();
     void stop() override;
     //void ev_feed_signal_event(int signum);
     void start(ev_loop *loop);
     void set_signum(int);
     int get_signum();
+    ~ev_signal();
     void call_back(ev_loop *loop, void *w, int) override;
 
     //void child_reap(int chain, int pid, int status);

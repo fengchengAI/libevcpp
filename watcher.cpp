@@ -5,7 +5,7 @@
 #include "watcher.h"
 
 ev_watcher::ev_watcher():
-            active(0),pending(0),priority(0),data(nullptr){}
+            active(0),pending(0),priority(0),data(nullptr),loop(nullptr){}
 
 void ev_watcher::call_back(ev_loop *loop, void *w, int event) {
     cb(loop, static_cast<ev_watcher*>(w), event);
@@ -45,17 +45,17 @@ void ev_watcher::set_pending(int pen_)
     pending = pen_;
 }
 
-int ev_watcher::get_pending()
+int ev_watcher::get_pending() const
 {
     return pending;
 }
 
-int ev_watcher::get_priority()
+int ev_watcher::get_priority() const
 {
     return priority;
 }
 
-int ev_watcher::get_active()
+int ev_watcher::get_active() const
 {
     return active;
 }
@@ -75,6 +75,9 @@ void ev_watcher::ev_start(int active_)
     ++loop->activecnt;
 }
 
+ev_watcher::~ev_watcher(){
+
+}
 void ev_watcher::stop(){
     active = 0;
     loop->activecnt--;

@@ -28,8 +28,8 @@ public:
     void start(ev_loop* loop);
     void stop() override;
     void stat();
-    int get_wd();
-    int get_fd();
+    int get_wd() const;
+    int get_fd() const;
 
     void set_wd(int wd_);
     void infy_add();
@@ -59,7 +59,7 @@ public:
     void remove(int fd, ev_stat* w);
     void push_front(int fd, ev_stat* w);
     size_t size();
-    int get_fd();
+    int get_fd() const;
     //ev_io *get_ev_io();
 
 private:

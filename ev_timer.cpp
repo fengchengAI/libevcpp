@@ -3,18 +3,20 @@
 //
 
 #include "ev_timer.h"
+
+#include <utility>
 #include "utils.h"
 void ev_timer::set_at(double at_){
     at = at_;
 }
-double ev_timer::get_at(){
+double ev_timer::get_at() const{
     return at;
 }
 
 void ev_timer::set_repeat(double repeat_){
     repeat = repeat_;
 }
-double ev_timer::get_repeat(){
+double ev_timer::get_repeat() const{
     return repeat;
 }
 
@@ -38,7 +40,7 @@ ev_timer::ev_timer():ev_watcher(),at(0),repeat(0)
 
 }
 void ev_timer::init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb_, double at_, double repeat_){
-    cb = cb_;
+    cb = std::move(cb_);
     at = at_;
     repeat = repeat_;
 }
@@ -63,7 +65,7 @@ void ev_timer::call_back(ev_loop *loop, void *w, int event){
 }
 
 void ev_periodic::init(std::function<void(ev_loop *, ev_periodic *, int)> cb_, tm *t_) {
-    cb = cb_;
+    cb = std::move(cb_);
     t = t_;
 }
 
@@ -71,7 +73,7 @@ void ev_periodic::set_at(double at_) {
     at = at_;
 }
 
-double ev_periodic::get_at() {
+double ev_periodic::get_at() const {
     return at;
 }
 
@@ -113,7 +115,7 @@ void ev_periodic::set_t(tm * t_) {
     t = t_;
 }
 
-ev_periodic::ev_periodic():ev_watcher() {
+ev_periodic::ev_periodic():ev_watcher(),at(0),t(nullptr) {
 
 }
 

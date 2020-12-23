@@ -7,6 +7,7 @@
 #include "watcher.h"
 #include "ev_io.h"
 #include <cstring>
+#include <utility>
 
 #include "utils.h"
 
@@ -83,8 +84,8 @@ ev_stat::ev_stat():ev_watcher()
 
 void ev_stat::init(std::function<void(ev_loop*, ev_stat*,int)> cb_, std::string str)
 {
-    cb = cb_;
-    path = str;
+    cb = std::move(cb_);
+    path = std::move(str);
 }
 
 
@@ -134,15 +135,10 @@ int File_Stat::infy_init()
     return fs_fd;
 }
 
-int File_Stat::get_fd() {
+int File_Stat::get_fd() const {
     return fs_fd;
 }
 
-/*
-ev_io * File_Stat::get_ev_io() {
-    return fs_w;
-}
-*/
 
 void File_Stat::infy_wd(int fd, struct inotify_event *ev)
 {
@@ -216,7 +212,7 @@ void ev_stat::infy_add()
 
 }
 
-int ev_stat::get_wd() {
+int ev_stat::get_wd() const {
     return wd;
 }
 
@@ -224,7 +220,7 @@ void ev_stat::set_wd(int wd_) {
     wd = wd_;
 }
 
-int ev_stat::get_fd() {
+int ev_stat::get_fd() const {
     return fs_fd;
 }
 

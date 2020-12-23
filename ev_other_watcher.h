@@ -20,9 +20,9 @@ public:
     void set_rpid(int rpid_);
     void set_rstatus(int rstatus_);
     void set_flags(int flags_);
-    int get_pid();
-    int get_rpid();
-    int get_rstatus();
+    int get_pid() const;
+    int get_rpid() const;
+    int get_rstatus() const;
     int get_flags();
 
 
@@ -46,7 +46,7 @@ public:
     void async_send();
     void call_back(ev_loop *loop, void *w, int) override;
 
-    sig_atomic_t get_sent();
+    sig_atomic_t get_sent() const;
     void set_sent(sig_atomic_t sent_);
 private:
     std::function<void(ev_loop *, ev_async *, int)> cb;

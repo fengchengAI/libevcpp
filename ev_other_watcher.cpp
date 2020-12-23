@@ -5,6 +5,7 @@
 #include "ev_other_watcher.h"
 #include <unistd.h>
 #include <map>
+#include <utility>
 
 // TODO 这个结构体正确吗
 std::map<int,std::forward_list<ev_child*>> childs;
@@ -31,12 +32,12 @@ void ev_child::stop() {
 }
 
 void ev_child::init(std::function<void(ev_loop *, ev_child *, int)> cb_, int pid_, int flag_) {
-    cb = cb_;
+    cb = std::move(cb_);
     pid = pid_;
     flags = flag_;
 }
 
-ev_child::ev_child() : ev_watcher(){
+ev_child::ev_child() : ev_watcher(),flags(0),pid(0),rstatus(0),rpid(0){
 
 }
 
@@ -60,15 +61,15 @@ void ev_child::set_flags(int flags_) {
     flags = flags_;
 }
 
-int ev_child::get_pid() {
+int ev_child::get_pid() const {
     return pid;
 }
 
-int ev_child::get_rpid() {
+int ev_child::get_rpid() const {
     return rpid;
 }
 
-int ev_child::get_rstatus() {
+int ev_child::get_rstatus() const {
     return rstatus;
 }
 
@@ -76,7 +77,7 @@ int ev_child::get_flags() {
     return flags;
 }
 
-sig_atomic_t ev_async::get_sent() {
+sig_atomic_t ev_async::get_sent() const {
     return sent;
 }
 

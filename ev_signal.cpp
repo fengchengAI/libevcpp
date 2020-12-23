@@ -163,6 +163,14 @@ void ev_signal::call_back(ev_loop *loop, void *w, int sig_ )
     cb(loop, static_cast<ev_signal*>(w), sig_);
 }
 
+ev_signal::ev_signal() :ev_watcher(),sigs(nullptr),signum(-1){
+
+}
+
+ev_signal::~ev_signal(){
+
+}
+
 Signal::Signal(ev_loop *loop_) :sigfd(0), sigfd_w(nullptr)
 {
     loop = loop_;

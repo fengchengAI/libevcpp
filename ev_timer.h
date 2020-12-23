@@ -19,12 +19,12 @@ public:
     void init(std::function<void(ev_loop *loop, ev_timer *w, int)> cb, double at_, double repeat_);
     void start(ev_loop *loop) noexcept ;
     void set_at(double );
-    double get_at();
+    double get_at() const;
     void stop() ;
     void call_back(ev_loop *loop, void *w, int) override;
 
     void set_repeat(double );
-    double get_repeat();
+    double get_repeat() const;
 
     std::function<void(ev_loop *loop, ev_timer *w, int)>cb;
 private:
@@ -40,7 +40,7 @@ public:
     void init(std::function<void(ev_loop *loop, ev_periodic *w, int)> cb, tm* t);
     void start(ev_loop *loop) noexcept ;
     void set_at(double );
-    double get_at();
+    double get_at() const;
     void stop();
     void again();
     void call_back(ev_loop *loop, void *w, int) override;
