@@ -363,7 +363,7 @@ int ev_loop::run(int flags)
 #endif
             assert((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
             //printf("befoe_backend_poll%f\n", get_clock());
-            printf("waittime%f\n",waittime);
+            //printf("waittime%f\n",waittime);
             mutilplexing->backend_poll(this, waittime);   // 里面有epoll_wait
             assert((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
             //printf("after_backend_poll%f\n", get_clock());
