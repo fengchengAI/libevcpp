@@ -7,11 +7,11 @@
 #include "ev_loop.h"
 
 
-class ev_epoll {
+class ev_Epoll {
 public:
-    ev_epoll(){
+    ev_Epoll(){
     };
-    static ev_epoll * GetThis();
+    static ev_Epoll * GetThis();
     int epoll_epoll_create();
 
 

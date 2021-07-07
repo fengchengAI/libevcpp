@@ -10,7 +10,7 @@
 #include "utils.h"
 #include "ev_other_watcher.h"
 #include "ev_io.h"
-
+Signal * t_signalfd_p = nullptr;
 void ev_signal::set_signum(int sig_)
 {
     signum = sig_;
@@ -34,34 +34,11 @@ void ev_feed_signal_event(ev_loop* loop, int signum)
 
     --signum;
 
-    #if EV_MULTIPLICITY
-    /* it is permissible to try to feed a signal to the wrong loop */
-    /* or, likely more useful, feeding a signal nobody is waiting for */
-
-    if(signals[signum].loop != loop)
-        return;
-    #endif
-
     signals[signum].pending = 0;
     for(auto i : signals [signum].head)
         loop->ev_feed_event(i,EV_SIGNAL);
 }
 
-void child_reap(ev_loop* loop, int pid, int status)
-{
-    int traced = WIFSTOPPED(status) || WIFCONTINUED(status);
-    for(auto w : childs.at(pid))
-    {
-        if((w->get_pid() == pid || !w->get_pid())
-            &&(!traced ||(w->get_flags() & 1)))
-        {
-            w->set_priority(EV_MAXPRI);
-            w->set_rpid(pid);
-            w->set_rstatus(status);
-            loop->ev_feed_event(w,EV_CHILD);
-        }
-    }
-}
 
 void sigfdcb(ev_loop*loop, ev_io *iow, int revents)
 {
@@ -80,52 +57,31 @@ void sigfdcb(ev_loop*loop, ev_io *iow, int revents)
             break;
     }
 }
-void ev_signal::start(ev_loop *loop)
+void ev_signal::start()
 {
 
-    set_loop(loop);
-    sigs = get_loop()->sigs;
+    // sigs = Signal::GetThis();
     if(get_active())
         return;
 
     assert(("libev: ev_signal_start called with illegal signal number", signum > 0 && signum < NSIG));
 
-    assert(("libev: a signal must not be attached to two different loops",
-            !signals[signum - 1].loop || signals[signum - 1].loop == loop));
+    // assert(("libev: a signal must not be attached to two different loops",
+    //         !signals[signum - 1].loop || signals[signum - 1].loop == loop));
 
-    signals[signum - 1].loop = loop;
+    // signals[signum - 1].loop = loop;
 
-    if(sigs->get_fd() >= 0)
+    if(Signal::GetThis()->get_fd() >= 0)
     {
-        /* TODO: check .head */
-        sigs->sigaddset(signum);
-       // int aa = (*(sigs->fd_set_ptr())).__val[0];
-        sigprocmask(SIG_BLOCK, sigs->fd_set_ptr(), 0);
-        signalfd(sigs->get_fd(), sigs->fd_set_ptr(), 0);
+        Signal::GetThis()->sigaddset(signum);
+        sigprocmask(SIG_BLOCK, Signal::GetThis()->fd_set_ptr(), 0);
+        signalfd(Signal::GetThis()->get_fd(), Signal::GetThis()->fd_set_ptr(), 0);
     }
 
-    ev_start(1);
+    ev_start();
     signals[signum - 1].head.push_front(this);
 }
 
-void childcb(ev_loop* loop, ev_signal * w, int revents)
-{
-    int pid, status;
-
-    /* some systems define WCONTINUED but then fail to support it(linux 2.4) */
-    if(0 >=(pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)))
-        if(!WCONTINUED
-        || errno != EINVAL
-        || 0 >=(pid = waitpid(-1, &status, WNOHANG | WUNTRACED)))
-            return;
-
-    /* make sure we are called again until all children have been reaped */
-    /* we need to do it this way so that the callback gets called before we continue */
-
-    loop->ev_feed_event(w,EV_SIGNAL);
-    child_reap(loop, pid, status);
-
-}
 
 void ev_signal::stop()
 {
@@ -144,26 +100,26 @@ void ev_signal::stop()
         signals[signum - 1].loop = nullptr; /* unattach from signal */
 #endif
 
-        if(sigs->get_fd() >= 0)
+        if(Signal::GetThis()->get_fd() >= 0)
         {
             sigset_t ss;
 
             sigemptyset(&ss);
             sigaddset(&ss, signum);
-            sigdelset(sigs->fd_set_ptr(), signum);
+            sigdelset(Signal::GetThis()->fd_set_ptr(), signum);
 
-            signalfd(sigs->get_fd(), sigs->fd_set_ptr(), 0);
+            signalfd(Signal::GetThis()->get_fd(), Signal::GetThis()->fd_set_ptr(), 0);
             sigprocmask(SIG_UNBLOCK, &ss, 0);
         }
     }
 }
 
-void ev_signal::call_back(ev_loop *loop, void *w, int sig_ )
+void ev_signal::call_back(ev_loop *loop, ev_watcher *w, int sig_ )
 {
-    cb(loop, static_cast<ev_signal*>(w), sig_);
+    cb(loop, dynamic_cast<ev_signal*>(w), sig_);
 }
 
-ev_signal::ev_signal() :ev_watcher(),sigs(nullptr),signum(-1){
+ev_signal::ev_signal() :ev_watcher(),signum(-1){
 
 }
 
@@ -171,9 +127,9 @@ ev_signal::~ev_signal(){
 
 }
 
-Signal::Signal(ev_loop *loop_) :sigfd(0), sigfd_w(nullptr)
+Signal::Signal() :sigfd_w(nullptr)
 {
-    loop = loop_;
+    //loop = loop_;
     sigfd = signalfd(-1, &sigfd_set, SFD_NONBLOCK | SFD_CLOEXEC);
     if(sigfd < 0 && errno == EINVAL)
         sigfd = signalfd(-1, &sigfd_set, 0); /* retry without flags */
@@ -186,8 +142,8 @@ Signal::Signal(ev_loop *loop_) :sigfd(0), sigfd_w(nullptr)
         sigfd_w = new ev_io();
         sigfd_w->init(sigfdcb, sigfd, EV_READ);
         sigfd_w->set_priority(EV_MAXPRI);
-        sigfd_w->start(loop_);
-        loop_->activecnt--;
+        sigfd_w->start();
+        ev_loop::GetThis()->activecnt--;
     }
 }
 
@@ -213,4 +169,8 @@ Signal::~Signal()
 {
     delete(sigfd_w);
     sigfd_w = nullptr;
+}
+
+Signal *Signal::GetThis() {
+    return t_signalfd_p;
 }

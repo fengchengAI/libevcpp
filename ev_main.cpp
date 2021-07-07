@@ -23,7 +23,7 @@ void stat_cb(struct ev_loop *loop, ev_stat* w,int revents)
         std::cout<<"current size "<<(long)w->attr.st_size<<std::endl;
     }
 }
-void async_cb(struct ev_loop *loop, ev_timer *watcher, int revents)
+void async_cb(struct ev_loop *loop, ev_async *watcher, int revents)
 {
     fprintf(stdout, "ring on\n");
 }
@@ -39,13 +39,12 @@ void io_cb (struct ev_loop *loop, ev_io *w, int revents)
 int main ()
 {
 
+    ev_loop *loop = ev_default_loop();
 
-    ev_loop *loop = ev_default_loop(EVFLAG_SIGNALFD);
-
-    ev_io t;
-    t.init(io_cb,0 ,EV_READ);
-    t.start(loop);
-        loop->run(0);
-        loop->destroy();
-        return 0;
+    ev_stat t;
+    t.init(stat_cb, "/home/feng/markdown.md");
+    t.start();
+    loop->run(0);
+    loop->destroy();
+    return 0;
 }

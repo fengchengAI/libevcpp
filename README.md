@@ -5,13 +5,13 @@ simple libev implemented with modern C++
 
 ## motivation
 
-由于`libev`是一个优秀的io复用框架，但是在实现中使用了大量的宏。这使得代码有一定的复杂性。并且libev为了兼容各个平台使用了多重选择，本项目本着最简单的原则，极大简化了项目。**故本项目可以方便了解libev的框架，如项目使用，请使用libev。** 但在细读libev前可以先阅读本项目。本项目使用c++,方便易懂。
+`libev`是一个优秀的io复用框架，但是在实现中使用了大量的宏。这使得代码有一定的复杂性。并且libev为了兼容各个平台，每个功能都有多个实现方案。本项目为了了解libev框架，极大简化了项目。**故本项目可以方便了解libev的框架，如项目使用，请使用libev。** 但在细读libev前可以先阅读本项目。本项目使用C++,方便易懂。
 
 
 
-本项目主要是针对 **Linux**，本人在 # Ubuntu20.04 # 下编写。并 **不适用于** MacOS，Windows 或者其他系统
+本项目主要是针对 **Linux**，本人在 **Ubuntu20.04** 下编写。删去了对其他系统支持的代码，故并 **不适用于** MacOS，Windows 或者其他系统
 
-在阅读该项目前，你的系统需要支持，**epoll，signalfd,，timerfd,，inotifyfd，eventfd **函数。
+在阅读该项目前，你的系统需要支持 **epoll，signalfd,，timerfd,，inotifyfd，eventfd**函数。
 
 ---
 
@@ -227,7 +227,7 @@ int main ()
 
 ## 框架
 
-`FdWatcher`是一个监视文件描述符的类，主要针对ev_io
+`FdManaher`是一个监视文件描述符的类，主要针对ev_io
 
 ```c++
 std::map<int,ANFD> anfd;  // 是其核心
@@ -255,7 +255,7 @@ Timer是一个时间类，主要有一个队列
 
 ```c++
 template <typename Type>
-class Timer{
+class TimeManaher{
 public:
     std::priority_queue<Type *, std::vector<Type *>,  std::function<bool(Type * a1, Type * a2)> > timer_queue;
 private: ev_loop *loop;

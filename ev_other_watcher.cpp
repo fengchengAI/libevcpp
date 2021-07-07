@@ -4,79 +4,7 @@
 
 #include "ev_other_watcher.h"
 #include <unistd.h>
-#include <map>
-#include <utility>
-
-// TODO 这个结构体正确吗
-std::map<int,std::forward_list<ev_child*>> childs;
-
-void ev_child::start(ev_loop *loop) {
-    set_loop(loop);
-
-#if EV_MULTIPLICITY
-    assert(("libev: child watchers are only supported in the default loop", loop == ev_default_loop_ptr));
-#endif
-    if(get_active())
-        return;
-    ev_start(1);
-    childs[pid].push_front(this);
-
-}
-
-void ev_child::stop() {
-    clear_pending();
-    if(!get_active())
-        return;
-    childs[pid].remove(this);
-    ev_watcher::stop();
-}
-
-void ev_child::init(std::function<void(ev_loop *, ev_child *, int)> cb_, int pid_, int flag_) {
-    cb = std::move(cb_);
-    pid = pid_;
-    flags = flag_;
-}
-
-ev_child::ev_child() : ev_watcher(),flags(0),pid(0),rstatus(0),rpid(0){
-
-}
-
-void ev_child::call_back(ev_loop *loop, void *w, int event) {
-    cb(loop,static_cast<ev_child*>(w), event);
-}
-
-void ev_child::set_pid(int pid_) {
-    pid = pid_;
-}
-
-void ev_child::set_rpid(int rpid_) {
-    rpid = rpid_;
-}
-
-void ev_child::set_rstatus(int rstatus_) {
-    rstatus = rstatus_;
-}
-
-void ev_child::set_flags(int flags_) {
-    flags = flags_;
-}
-
-int ev_child::get_pid() const {
-    return pid;
-}
-
-int ev_child::get_rpid() const {
-    return rpid;
-}
-
-int ev_child::get_rstatus() const {
-    return rstatus;
-}
-
-int ev_child::get_flags() {
-    return flags;
-}
-
+#include "ev_loop.h"
 sig_atomic_t ev_async::get_sent() const {
     return sent;
 }
@@ -85,14 +13,13 @@ void ev_async::set_sent(sig_atomic_t sent_) {
     sent = sent_;
 }
 
-void ev_async::start(ev_loop *loop) {
-    set_loop(loop);
+void ev_async::start() {
     if(get_active())
         return;
     sent = 0;
-    get_loop()->event_init();
-    get_loop()->asyncs.push_back(this);
-    ev_start(get_loop()->asyncs.size());
+    ev_loop::GetThis()->event_init();
+    ev_loop::GetThis()->asyncs.push_back(this);
+    ev_start();
 }
 
 void ev_async::stop() {
@@ -104,7 +31,6 @@ void ev_async::stop() {
 
 ev_async::ev_async():ev_watcher(),sent(0)
 {
-
 }
 
 void ev_async::init(std::function<void(ev_loop *, ev_async *, int)> cb_) {
@@ -113,21 +39,20 @@ void ev_async::init(std::function<void(ev_loop *, ev_async *, int)> cb_) {
 
 void ev_async::async_send() {
     sent = 1;
-    if(get_loop()->async_pending)
+    if(ev_loop::GetThis()->async_pending)
         return;
-    get_loop()->async_pending = 1;
+    ev_loop::GetThis()->async_pending = 1;
     int old_errno;
     old_errno = errno; /* save errno because write will clobber it */
 
-#if EV_USE_EVENTFD
     uint64_t counter = 1;
-    write(get_loop()->event_fd, &counter, sizeof(uint64_t));
-#endif
+    write(ev_loop::GetThis()->event_fd, &counter, sizeof(uint64_t));
+
     errno = old_errno;
 }
 
-void ev_async::call_back(ev_loop *loop, void *w, int event) {
-    cb(loop, static_cast<ev_async*>(w), event);
+void ev_async::call_back(ev_loop *loop, ev_watcher *w, int event) {
+    cb(loop, dynamic_cast<ev_async*>(w), event);
 }
 
 

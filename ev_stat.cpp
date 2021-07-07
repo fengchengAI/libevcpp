@@ -11,6 +11,7 @@
 
 #include "utils.h"
 
+FileManaher * t_file_stat = nullptr;
 void stat_timer_cb(ev_loop* loop, ev_stat *w, int revents)
 {
 
@@ -58,25 +59,21 @@ void ev_stat::stat()
     else if(!attr.st_nlink)
         attr.st_nlink = 1;
 }
-void ev_stat::call_back(ev_loop *loop, void *w, int event){
-    cb(loop, static_cast<ev_stat *>(w), event);
+void ev_stat::call_back(ev_loop *loop, ev_watcher *w, int event){
+    cb(loop, dynamic_cast<ev_stat *>(w), event);
 }
 
-void ev_stat::start(ev_loop *loop)
+void ev_stat::start()
 {
-    set_loop(loop);
-    file_stat = get_loop()->file_stat;
+    // file_stat = FileManaher::GetThis();
     if(get_active())
         return;
-    ::ev_stat::stat();
 
-    assert(("ev_stat depend on linux INOTIFY ",EV_USE_INOTIFY));
-
-    fs_fd = file_stat->get_fd();
+    fs_fd = FileManaher::GetThis()->get_fd();
     if(fs_fd >= 0)
         infy_add();
 
-    ev_start(1);
+    ev_start();
 }
 
 ev_stat::ev_stat():ev_watcher()
@@ -89,14 +86,14 @@ void ev_stat::init(std::function<void(ev_loop*, ev_stat*,int)> cb_, std::string 
 }
 
 
-File_Stat::File_Stat(ev_loop *loop_)
+FileManaher::FileManaher()
 {
-    loop = loop_;
+    t_file_stat = this;
     fs_w  = new ev_io();
     infy_init();
 }
 
-int File_Stat::infy_newfd()
+int FileManaher::infy_newfd()
 {
 #if defined IN_CLOEXEC && defined IN_NONBLOCK
     int fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
@@ -115,12 +112,12 @@ void infy_cb(ev_loop *loop, ev_io *w, int revents)
     for(ofs = 0; ofs < len; )
     {
         struct inotify_event *ev =(struct inotify_event *)(buf + ofs);
-        loop->file_stat->infy_wd(ev->wd, ev);
+        FileManaher::GetThis()->infy_wd(ev->wd, ev);
         ofs += sizeof(struct inotify_event) + ev->len;
     }
 }
 
-int File_Stat::infy_init()
+int FileManaher::infy_init()
 {
     fs_fd = infy_newfd();
 
@@ -129,46 +126,50 @@ int File_Stat::infy_init()
         fd_intern(fs_fd);
         fs_w->init(infy_cb, fs_fd, EV_READ);
         fs_w->set_priority(EV_MAXPRI);
-        fs_w->start(loop);
-        --loop->activecnt;
+        fs_w->start();
+        --ev_loop::GetThis()->activecnt;
     }
     return fs_fd;
 }
 
-int File_Stat::get_fd() const {
+int FileManaher::get_fd() const {
     return fs_fd;
 }
 
 
-void File_Stat::infy_wd(int fd, struct inotify_event *ev)
+void FileManaher::infy_wd(int fd, struct inotify_event *ev)
 {
 
-    //std::vector<ev_stat*> temp;
     for(auto w : fs_hash.at(fd))
     {
         if(w->get_wd() ==fd || fd ==-1 )
         {
             if(ev->mask &(IN_IGNORED | IN_UNMOUNT | IN_DELETE_SELF))
             {
-                //temp.push_back(w);
                 w->infy_add();  // 这里一般因为文件已经删除，于是重新添加，此时的wd不等于这个fd，所以不担心在范围循环中对容量做修改
             }
-            stat_timer_cb(loop, w, 0);
+            stat_timer_cb(ev_loop::GetThis(), w, 0);
         }
     }
 }
 
-File_Stat::~File_Stat() {
+FileManaher::~FileManaher() {
     delete(fs_w);
     fs_w = nullptr;
 }
 
-void File_Stat::push_front(int fd, ev_stat *w) {
+void FileManaher::push_front(int fd, ev_stat *w) {
     fs_hash[fd].push_front(w);
 }
 
-void File_Stat::remove(int fd, ev_stat *w) {
+void FileManaher::remove(int fd, ev_stat *w) {
     fs_hash[fd].remove(w);
+}
+
+FileManaher *FileManaher::GetThis() {
+    if (!t_file_stat)
+        t_file_stat = new FileManaher();
+    return t_file_stat;
 }
 
 void ev_stat::infy_add()
@@ -208,7 +209,7 @@ void ev_stat::infy_add()
     }
 
     if(wd >= 0)
-        file_stat->push_front(wd,this);
+        FileManaher::GetThis()->push_front(wd, this);
 
 }
 
@@ -233,7 +234,7 @@ void ev_stat::infy_del() {
 
     this->wd = -2;
     slot = wd &((EV_INOTIFY_HASHSIZE) - 1);
-    file_stat->remove(slot,this);
+    FileManaher::GetThis()->remove(slot, this);
 
     /* remove this watcher, if others are watching it, they will rearm */
     inotify_rm_watch(fs_fd, wd);

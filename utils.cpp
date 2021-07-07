@@ -8,11 +8,7 @@
 #include <unistd.h>
 #include <ctime>
 #include <iostream>
-int enable_secure(void)
-{
-    return getuid() != geteuid()
-           || getgid() != getegid();
-}
+
 
 double ev_time(void)
 {
@@ -61,8 +57,7 @@ int array_nextsize(int elem, int cur, int cnt)
     return ncur;
 }
 
-/* used to prepare libev internal fd's */
-/* this is not fork-safe */
+
 void fd_intern(int fd)
 {
     fcntl(fd, F_SETFD, FD_CLOEXEC);

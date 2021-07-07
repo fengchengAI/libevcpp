@@ -3,8 +3,4 @@ project(libevcpp)
 
 set(CMAKE_CXX_STANDARD 14)
 file(GLOB source_list "*.cpp" "*.h")
-#list(REMOVE_ITEM source_list "/home/feng/Github/CLionProjects/libevcpp/test.cpp")
-message(${source_list})
-find_package(Threads )
 add_executable(libevcpp ${source_list})
-target_link_libraries (libevcpp ${CMAKE_THREAD_LIBS_INIT})

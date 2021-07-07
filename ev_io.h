@@ -5,20 +5,18 @@
 #ifndef LIBEVCPP_EV_IO_H
 #define LIBEVCPP_EV_IO_H
 
-#include <map>
 #include "watcher.h"
 
-class ev_watcher;
-
+class ev_loop;
 class ev_io : public ev_watcher
 {
 public:
     ev_io();
     ~ev_io();
     void init(std::function<void(ev_loop *, ev_io *, int)> cb, int fd_,int events_);
-    void call_back(ev_loop *loop, void *w, int) override;
-    void start(ev_loop *loop);
-    void stop() override;
+    void call_back(ev_loop *loop, ev_watcher *w, int) override;
+    void start();
+    void stop();
     int get_fd() const;
     void set_fd(int fd_);
     int get_event() const;

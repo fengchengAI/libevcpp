@@ -71,16 +71,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "ev_loop.h"
-#include "ev_epoll.h"
+#include "ev_Epoll.h"
 #include "watcher.h"
 #include "ev.h"
 #include "ev_fdmanager.h"
 #include "utils.h"
 
-ev_epoll * t_ev_epoll = nullptr;
-ev_epoll * ev_epoll::GetThis(){
+ev_Epoll * t_ev_epoll = nullptr;
+ev_Epoll * ev_Epoll::GetThis(){
     if (!t_ev_epoll)
-        t_ev_epoll = new ev_epoll();
+        t_ev_epoll = new ev_Epoll();
     return t_ev_epoll;
 }
 
@@ -88,7 +88,7 @@ class FdManaher;
 class ev_loop;
 const int  EV_EMASK_EPERM = 0x80;
 
-void ev_epoll::backend_modify(int fd, int oev, int nev) {
+void ev_Epoll::backend_modify(int fd, int oev, int nev) {
     struct epoll_event ev;
     unsigned char oldmask;
 
@@ -137,7 +137,7 @@ void ev_epoll::backend_modify(int fd, int oev, int nev) {
     FdManaher::GetThis()->fd_kill(fd);
 }
 
-void ev_epoll::backend_poll(double timeout)
+void ev_Epoll::backend_poll(double timeout)
 {
     int i;
     int eventcnt;
@@ -222,7 +222,7 @@ void ev_epoll::backend_poll(double timeout)
      */
 }
 
-int ev_epoll::epoll_epoll_create()
+int ev_Epoll::epoll_epoll_create()
 {
     int fd;
     fd = epoll_create1(EPOLL_CLOEXEC);
@@ -239,7 +239,7 @@ int ev_epoll::epoll_epoll_create()
 }
 
 
-void ev_epoll::backend_init()
+void ev_Epoll::backend_init()
 {
     backend_fd = epoll_epoll_create();
     if(backend_fd  < 0)
@@ -251,7 +251,7 @@ void ev_epoll::backend_init()
     epoll_events =(struct epoll_event *)malloc(sizeof(struct epoll_event) * epoll_eventmax);
 }
 
-void ev_epoll::destroy()
+void ev_Epoll::destroy()
 {
     free(epoll_events);
     epoll_events = nullptr;

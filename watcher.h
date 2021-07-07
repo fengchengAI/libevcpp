@@ -8,8 +8,6 @@
 #include <functional>
 #include <forward_list>
 
-#include "ev_loop.h"
-
 class ev_loop;
 
 
@@ -30,27 +28,23 @@ public:
     virtual ~ev_watcher();
     void init(std::function<void(ev_loop *loop, ev_watcher *w, int)>);
     void set_priority(int pri_);
-    void set_active(int act_);
     void set_pending(int pen_);
     void set_data(void *d_);
     int get_priority() const;
-    int get_active() const;
+    bool get_active() const;
     int get_pending() const;
     void clear_pending();
     void *get_data();
     void pri_adjust();
-    void ev_start(int active_);
+    void ev_start();
     virtual void stop();
-    virtual void call_back(ev_loop *loop, void *w, int);
-    ev_loop *get_loop();
-    void set_loop(ev_loop *);
+    virtual void call_back(ev_loop *loop, ev_watcher *w, int) = 0;
 
 private:
-    int active;
+    bool active ;
     int pending;
     int priority;
     void *data;
-    ev_loop *loop;
     std::function<void(ev_loop *loop, ev_watcher *w, int)>cb;
 };
 #endif //LIBEVCPP_WATCHER_H

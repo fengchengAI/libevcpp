@@ -2,20 +2,20 @@
 // Created by feng on 2020/12/2.
 //
 
-#ifndef LIBEVCPP_ANFD_H
-#define LIBEVCPP_ANFD_H
+#ifndef LIBEVCPP_EV_FDMANAGER_H
+#define LIBEVCPP_EV_FDMANAGER_H
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
+
 #include "ev_loop.h"
-#include "ev_epoll.h"
+#include "ev_Epoll.h"
 #include "ev.h"
 #include "ev_io.h"
 #include "watcher.h"
 
-#include <unordered_set>
 
-class ev_io;
 struct ANFD
 {
     ANFD():events(0), newevent(0){}
@@ -25,10 +25,10 @@ struct ANFD
 
 };
 
-class FdWatcher{
+class FdManaher{
 public:
-    static FdWatcher * GetThis();
-    FdWatcher();
+    static FdManaher * GetThis();
+    FdManaher();
     ANFD &get_anfd(int index);
     void fd_event_nocheck(int fd, int revents);
     void fd_kill(int fd);
@@ -39,10 +39,9 @@ public:
     void push_front(int fd, ev_io* w);
     size_t size();
 private:
-    // ev_loop * loop;
     std::unordered_map<int, ANFD> anfd; //因为一个fd，可能对应多个事件，eg，多个ev_io使用stdin。
     std::unordered_set<int> fdchanges;  // 存放的是需要被修改权限的fd
 
 };
 
-#endif //LIBEVCPP_ANFD_H
+#endif //LIBEVCPP_EV_FDMANAGER_H

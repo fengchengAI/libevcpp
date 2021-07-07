@@ -12,20 +12,19 @@
 #include "climits"
 #include <array>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include "watcher.h"
 #include "ev_loop.h"
-#define DEF_STAT_INTERVAL  5.0074891
-#define NFS_STAT_INTERVAL 30.1074891 /* for filesystems potentially failing inotify */
-#define MIN_STAT_INTERVAL  0.1074891
+#include "ev_io.h"
+
 #define EV_INOTIFY_BUFSIZE (sizeof (struct inotify_event) * 2 + NAME_MAX)
 
 class ev_stat : public ev_watcher{
 public:
     ev_stat();
-    void init (std::function<void(ev_loop*, ev_stat*,int)>, std::string);
+    void init (std::function<void(ev_loop*, ev_stat*, int)>, std::string);
 
-    void start(ev_loop* loop);
+    void start();
     void stop() override;
     void stat();
     int get_wd() const;
@@ -34,39 +33,35 @@ public:
     void set_wd(int wd_);
     void infy_add();
     void infy_del();
-    void call_back(ev_loop *loop, void *w, int) override;
+    void call_back(ev_loop *loop, ev_watcher *w, int) override;
 
     struct stat attr;
     struct stat prev;
 private:
 
     std::string path;
-    File_Stat *file_stat;
     std::function<void(ev_loop*, ev_stat*, int)> cb;
     int fs_fd;
     int wd; /* wd for inotify, fd for kqueue */
 };
 
 
-
-class File_Stat{
+class FileManaher{
 public:
-    ~File_Stat();
-    explicit File_Stat(ev_loop * loop_);
+    ~FileManaher();
+    static FileManaher * GetThis();
+    FileManaher();
     int infy_newfd();
     int infy_init();
     void infy_wd(int fd, struct inotify_event *ev);
     void remove(int fd, ev_stat* w);
     void push_front(int fd, ev_stat* w);
-    size_t size();
     int get_fd() const;
-    //ev_io *get_ev_io();
 
 private:
     int fs_fd;
-    std::map<int, std::forward_list<ev_stat*>> fs_hash;
+    std::unordered_map<int, std::forward_list<ev_stat*> > fs_hash;
     ev_io* fs_w;
-    ev_loop *loop;
 };
 
 void stat_timer_cb (ev_loop* loop, ev_stat *w, int revents);
