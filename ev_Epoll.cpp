@@ -74,20 +74,21 @@
 #include "ev_epoll.h"
 #include "watcher.h"
 #include "ev.h"
-#include "anfd.h"
+#include "ev_fdmanager.h"
 #include "utils.h"
 
-Multiplexing * selectMultiplexing( int condition ){
-    switch(condition) {
-        case  0x00000004U:
-            return  new ev_epoll();
-    }
+ev_epoll * t_ev_epoll = nullptr;
+ev_epoll * ev_epoll::GetThis(){
+    if (!t_ev_epoll)
+        t_ev_epoll = new ev_epoll();
+    return t_ev_epoll;
 }
-class FdWatcher;
+
+class FdManaher;
 class ev_loop;
 const int  EV_EMASK_EPERM = 0x80;
 
-void ev_epoll::backend_modify(ev_loop *loop, int fd, int oev, int nev) {
+void ev_epoll::backend_modify(int fd, int oev, int nev) {
     struct epoll_event ev;
     unsigned char oldmask;
 
@@ -98,17 +99,14 @@ void ev_epoll::backend_modify(ev_loop *loop, int fd, int oev, int nev) {
     */
     if(!nev)
         return;
-
-    oldmask = loop->fdwtcher->get_anfd(fd).emask;
-    loop->fdwtcher->get_anfd(fd).emask = static_cast<unsigned char>(nev);
+    FdManaher::GetThis()->get_anfd(fd).events  = nev;
 
     /* store the generation counter in the upper 32 bits, the fd in the lower 32 bits */
-    ev.data.u64 =(uint64_t)(uint32_t) fd
-                  |((uint64_t)(uint32_t)(++loop->fdwtcher->get_anfd(fd).egen) << 32);
+    ev.data.fd = fd;
     ev.events =(nev & EV_READ ? EPOLLIN : 0)
                 |(nev & EV_WRITE ? EPOLLOUT : 0);
 
-    if(!epoll_ctl(backend_fd, oev &&(oldmask != nev) ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev))
+    if(!epoll_ctl(backend_fd, oldmask != nev ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, fd, &ev))
         return;
     do{
         if(errno == ENOENT) {
@@ -119,7 +117,7 @@ void ev_epoll::backend_modify(ev_loop *loop, int fd, int oev, int nev) {
         } else if(errno == EEXIST) {
             /* EEXIST means we ignored a previous DEL, but the fd is still active */
             /* if the kernel mask is the same as the( mask, we assume it hasn't changed */
-            if(oldmask == nev) {
+            if(oev == nev) {
                 break;
             }
             if(!epoll_ctl(backend_fd, EPOLL_CTL_MOD, fd, &ev))
@@ -127,33 +125,23 @@ void ev_epoll::backend_modify(ev_loop *loop, int fd, int oev, int nev) {
         } else if(errno == EPERM) {
             /* EPERM means the fd is always ready, but epoll is too snobbish */
             /* to handle it, unlike select or poll. */
-            loop->fdwtcher->get_anfd(fd).emask = EV_EMASK_EPERM;
-
-            /* add fd to epoll_eperms, if not already inside */
-            if(!(oldmask & EV_EMASK_EPERM)) {
-                //  TODO ?
-                //array_needsize(int, epoll_eperms, epoll_epermmax, epoll_epermcnt + 1, array_needsize_noinit);
-                //epoll_eperms[epoll_epermcnt++] = fd;
-            }
+            std::cerr<<"目标文件fd不支持epoll"<<std::endl;
 
             return;
         } else
             assert(("libev: I/O watcher with invalid fd found in epoll_ctl", errno != EBADF && errno != ELOOP &&
                                                                               errno != EINVAL));
     }while(0);
-    loop->fdwtcher->fd_kill(fd);
 
-    /* 我们没有成功调用epoll_ctl，因此再次减少了生成计数器*/
-    --loop->fdwtcher->get_anfd(fd).egen;
+    // 没有调用成功
+    FdManaher::GetThis()->fd_kill(fd);
 }
 
-void ev_epoll::backend_poll(ev_loop *loop, double timeout)
+void ev_epoll::backend_poll(double timeout)
 {
     int i;
     int eventcnt;
 
-    if(epoll_epermcnt)
-        timeout = 0.;
 
     /* epoll wait times cannot be larger than(LONG_MAX - 999UL) / HZ msecs, which is below */
     /* the default libev max wait time, however. */
@@ -170,8 +158,8 @@ void ev_epoll::backend_poll(ev_loop *loop, double timeout)
     {
         struct epoll_event *ev = epoll_events + i;
 
-        int fd =(uint32_t)ev->data.u64; /* mask out the lower 32 bits */
-        int want = loop->fdwtcher->get_anfd(fd).events;
+        int fd = ev->data.fd; /* mask out the lower 32 bits */
+        int want = FdManaher::GetThis()->get_anfd(fd).events;
         int got  =(ev->events &(EPOLLOUT | EPOLLERR | EPOLLHUP) ? EV_WRITE : 0)
                    |(ev->events &(EPOLLIN  | EPOLLERR | EPOLLHUP) ? EV_READ  : 0);
 
@@ -180,36 +168,30 @@ void ev_epoll::backend_poll(ev_loop *loop, double timeout)
          这只会在egen更新中找到虚假通知，其他虚假通知将通过epoll_ctl找到，
          下面我们假设fd始终在范围内，因为我们从不缩小anfds数组,
          */
-        if((uint32_t)loop->fdwtcher->get_anfd(fd).egen !=(uint32_t)(ev->data.u64 >> 32))
-        {
-            // 当在epoll_ctl出错才会满足上面的条件
-            /* recreate kernel state */
-            loop->postfork |= 2;
-            continue;
-        }
 
         if((got & ~want))
         {
-            loop->fdwtcher->get_anfd(fd).emask = want;
-
-            /*
-             我们收到了一个事件，但对它不感兴趣，请尝试使用mod或del这种巧合情况，
-             因为当我们不再对fds感兴趣时，而且当我们从另一个进程中收到有关fds的虚假通知时，我们也不愿取消注册fds。
-             这在上面用gencounter检查部分处理（==我们的fd不是事件fd），在这里部分是当epoll_ctl返回错误（==一个孩子有fd但我们关闭了它）。
-            注意：对于诸如POLLHUP之类的事件，我们不知道它是指EV_READ还是EV_WRITE，我们可能会发出冗余的EPOLL_CTL_MOD调用。
-             */
-            ev->events =(want & EV_READ  ? EPOLLIN  : 0)
-                         |(want & EV_WRITE ? EPOLLOUT : 0);
-
-            /* pre-2.6.9 kernels require a non-null pointer with EPOLL_CTL_DEL, */
-            /* which is fortunately easy to do for us. */
-            if(epoll_ctl(backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
-            {
-                loop->postfork |= 2; /* an error occurred, recreate kernel state */
-                continue;
-            }
+            std::cout<<"未监听的事件类型被触发"<<std::endl;
+//            FdManaher::GetThis()->get_anfd(fd).emask = want;
+//
+//            /*
+//             我们收到了一个事件，但对它不感兴趣，请尝试使用mod或del这种巧合情况，
+//             因为当我们不再对fds感兴趣时，而且当我们从另一个进程中收到有关fds的虚假通知时，我们也不愿取消注册fds。
+//             这在上面用gencounter检查部分处理（==我们的fd不是事件fd），在这里部分是当epoll_ctl返回错误（==一个孩子有fd但我们关闭了它）。
+//            注意：对于诸如POLLHUP之类的事件，我们不知道它是指EV_READ还是EV_WRITE，我们可能会发出冗余的EPOLL_CTL_MOD调用。
+//             */
+//            ev->events =(want & EV_READ  ? EPOLLIN  : 0)
+//                         |(want & EV_WRITE ? EPOLLOUT : 0);
+//
+//            /* pre-2.6.9 kernels require a non-null pointer with EPOLL_CTL_DEL, */
+//            /* which is fortunately easy to do for us. */
+//            if(epoll_ctl(backend_fd, want ? EPOLL_CTL_MOD : EPOLL_CTL_DEL, fd, ev))
+//            {
+//                loop->postfork |= 2; /* an error occurred, recreate kernel state */
+//                continue;
+//            }
         }
-        loop->fdwtcher->fd_event(fd, got);
+        FdManaher::GetThis()->fd_event_nocheck(fd, got);
     }
 
     /* if the receive array was full, increase its size */
@@ -217,37 +199,35 @@ void ev_epoll::backend_poll(ev_loop *loop, double timeout)
     {
         free(epoll_events);
         epoll_events = nullptr;
-        //ev_free(epoll_events);
-        //epoll_events.clear();
+
         epoll_eventmax = array_nextsize(sizeof(struct epoll_event), epoll_eventmax, epoll_eventmax + 1);
         epoll_events =(struct epoll_event *)malloc(sizeof(struct epoll_event) * epoll_eventmax);
     }
 
     /* 现在可以在epoll失败而select可以工作的情况下为所有fds合成事件，... */
+    /*
     for(i = epoll_epermcnt; i--; )
     {
         int fd = epoll_eperms[i];
-        unsigned char events = loop->fdwtcher->get_anfd(fd).events &(EV_READ | EV_WRITE);
+        unsigned char events = FdManaher::GetThis()->get_anfd(fd).events &(EV_READ | EV_WRITE);
 
-        if(loop->fdwtcher->get_anfd(fd).emask & EV_EMASK_EPERM && events)
-            loop->fdwtcher->fd_event(fd,events);
+        if(FdManaher::GetThis()->get_anfd(fd).emask & EV_EMASK_EPERM && events)
+            FdManaher::GetThis()->fd_event(fd,events);
         else
         {
             epoll_eperms[i] = epoll_eperms[--epoll_epermcnt];
-            loop->fdwtcher->get_anfd(fd).emask = 0;
+            FdManaher::GetThis()->get_anfd(fd).emask = 0;
         }
     }
+     */
 }
 
 int ev_epoll::epoll_epoll_create()
 {
     int fd;
-
-#if defined EPOLL_CLOEXEC
     fd = epoll_create1(EPOLL_CLOEXEC);
 
     if(fd < 0 &&(errno == EINVAL || errno == ENOSYS))
-#endif
     {
         fd = epoll_create(256);
 
@@ -259,7 +239,7 @@ int ev_epoll::epoll_epoll_create()
 }
 
 
-void ev_epoll::backend_init(ev_loop *loop, int flags)
+void ev_epoll::backend_init()
 {
     backend_fd = epoll_epoll_create();
     if(backend_fd  < 0)
@@ -277,21 +257,4 @@ void ev_epoll::destroy()
     epoll_events = nullptr;
     free(epoll_eperms);
     epoll_eperms = nullptr;
-}
-
-
-void ev_epoll::fork(ev_loop * loop)
-{
-    close(backend_fd);
-
-    while((backend_fd = epoll_epoll_create()) < 0)
-        std::cerr<<"(libev) epoll_create"<<std::endl;
-
-    loop->fdwtcher->fd_rearm_all();
-}
-
-
-Multiplexing::Multiplexing()
-{
-
 }
